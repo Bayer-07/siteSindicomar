@@ -1,8 +1,9 @@
-import { ArrowLeft, Database, Plus } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { AdminCrud } from "@/components/admin-crud";
 
 type AdminRecord = Record<string, unknown>;
 
-export function AdminModule({ title, description, records, createEnabled = true }: { title: string; description: string; records: AdminRecord[]; createEnabled?: boolean }) {
-  return <main className="admin-module-page"><div className="admin-module-shell"><Link className="back-link" href="/admin"><ArrowLeft size={16} /> Voltar ao painel</Link><header><div><span className="eyebrow">Administração</span><h1>{title}</h1><p>{description}</p></div>{createEnabled && <button className="button button-primary" type="button"><Plus size={17} /> Novo registro</button>}</header><section className="admin-panel"><div className="panel-heading"><div><h2>Registros</h2><p>Dados carregados do ambiente protegido.</p></div><span>{records.length} itens</span></div>{records.length ? <div className="admin-record-list">{records.map((record, index) => <article key={String(record.id ?? index)}><div><strong>{String(record.title ?? record.protocol ?? record.key ?? record.name ?? `Registro ${index + 1}`)}</strong><p>{String(record.summary ?? record.excerpt ?? record.requester_name ?? record.status ?? "Sem descrição")}</p></div><div><span className="status-badge status-informational">{String(record.status ?? "cadastrado")}</span><button type="button">Editar</button></div></article>)}</div> : <div className="empty-admin"><Database size={28} /><strong>Nenhum registro neste módulo</strong><p>O cadastro será liberado depois da configuração do conteúdo oficial.</p></div>}</section></div></main>;
+export function AdminModule({ section, table, title, description, records, createEnabled = true }: { section: string; table: string; title: string; description: string; records: AdminRecord[]; createEnabled?: boolean }) {
+  return <main className="admin-module-page"><div className="admin-module-shell"><Link className="back-link" href="/admin"><ArrowLeft size={16} /> Voltar ao painel</Link><header><div><span className="eyebrow">Administração</span><h1>{title}</h1><p>{description}</p></div></header><section className="admin-panel"><div className="panel-heading"><div><h2>Registros</h2><p>Dados carregados do ambiente protegido.</p></div><span>{records.length} itens</span></div><AdminCrud section={section} table={table} initialRecords={records} createEnabled={createEnabled} /></section></div></main>;
 }
