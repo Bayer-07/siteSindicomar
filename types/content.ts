@@ -22,7 +22,6 @@ export interface CollectiveDocument {
   lastReviewedAt: string;
   officialSource?: string;
   pdfUrl?: string;
-  isDemo: boolean;
 }
 
 export interface AgendaItem {
@@ -36,7 +35,6 @@ export interface AgendaItem {
   type: "holiday" | "special-hours" | "assembly" | "course" | "event";
   status: AgendaStatus;
   relatedDocumentSlug?: string;
-  isDemo: boolean;
 }
 
 export interface Service {
@@ -49,7 +47,6 @@ export interface Service {
   exclusive: boolean;
   partner?: string;
   validity?: string;
-  isDemo: boolean;
 }
 
 export interface Post {
@@ -61,5 +58,4 @@ export interface Post {
   updatedAt: string;
   author: string;
   body: string[];
-  isDemo: boolean;
 }

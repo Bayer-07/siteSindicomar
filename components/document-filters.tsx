@@ -1,8 +1,8 @@
 "use client";
 
 import { FileText, Search } from "lucide-react";
-import Link from "next/link";
 import { useMemo, useState } from "react";
+import { PublicLink as Link } from "@/components/public-link";
 import { documentTypeLabels } from "@/data/site-content";
 import type { CollectiveDocument, DocumentStatus, DocumentType } from "@/types/content";
 import { DocumentStatusBadge } from "@/components/status-badge";

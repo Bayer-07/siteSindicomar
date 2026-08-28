@@ -1,10 +1,10 @@
 "use client";
 
 import { Dialog } from "@base-ui/react/dialog";
-import { Menu, MessageCircle, Search, X } from "lucide-react";
+import { Mail, Menu, Phone, Search, X } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { PublicLink as Link } from "@/components/public-link";
 import { navigation, publicContact } from "@/data/site-content";
 
 type SearchResult = { type: string; title: string; excerpt: string; href: string };
@@ -13,10 +13,6 @@ export function SiteHeader() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
-  const whatsappHref = publicContact.whatsapp
-    ? `https://wa.me/${publicContact.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent("Olá, acessei o portal do Sindicomar e preciso de atendimento.")}`
-    : "/contato";
-
   async function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (query.trim().length < 2) return;
@@ -30,11 +26,13 @@ export function SiteHeader() {
   return (
     <>
       <a className="skip-link" href="#conteudo">Ir para o conteúdo</a>
-      <div className="urgent-bar">
-        <div className="shell urgent-inner">
-          <span className="urgent-label">Comunicado</span>
-          <p>Portal em homologação — conteúdo trabalhista aguarda validação.</p>
-          <Link href="/noticias/portal-sindicomar-em-homologacao">Saiba mais</Link>
+      <div className="utility-bar">
+        <div className="shell utility-inner">
+          <span>Sindicato Patronal do Comércio Varejista</span>
+          <div>
+            <a href={`tel:${publicContact.phone.replace(/\D/g, "")}`}><Phone size={13} />{publicContact.phone}</a>
+            <a href={`mailto:${publicContact.email}`}><Mail size={13} />{publicContact.email}</a>
+          </div>
         </div>
       </div>
       <header className="site-header">
@@ -63,8 +61,8 @@ export function SiteHeader() {
                 </Dialog.Viewport>
               </Dialog.Portal>
             </Dialog.Root>
-            <a className="icon-button whatsapp-compact" href={whatsappHref} target={publicContact.whatsapp ? "_blank" : undefined} rel="noreferrer" aria-label="Atendimento pelo WhatsApp"><MessageCircle size={19} /></a>
             <Link className="button button-secondary header-cta" href="/convencoes">Consultar CCT</Link>
+            <Link className="button button-primary membership-header-cta" href="/associe-se">Associe-se</Link>
             <Dialog.Root triggerId="site-menu-trigger">
               <Dialog.Trigger id="site-menu-trigger" className="icon-button mobile-trigger" aria-label="Abrir menu"><Menu size={22} /></Dialog.Trigger>
               <Dialog.Portal>
