@@ -1,0 +1,3 @@
+import { LegalPage } from "@/components/legal-page";
+export const metadata = { title: "Termos de Uso" };
+export default function TermsPage() { return <LegalPage eyebrow="Termos" title="Termos de Uso" description="Regras para consulta e utilização das informações do portal."><h2>Natureza das informações</h2><p>Resumos e conteúdos orientativos não substituem documentos oficiais nem análise profissional específica.</p><h2>Atualização</h2><p>O portal informará a situação editorial e a última conferência dos instrumentos, mas o visitante deve considerar o PDF oficial e confirmar dúvidas com a entidade.</p><h2>Uso responsável</h2><p>É proibido tentar acessar áreas protegidas, comprometer a disponibilidade do site ou usar os canais para conteúdo ilícito.</p></LegalPage>; }

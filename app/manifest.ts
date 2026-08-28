@@ -1,0 +1,2 @@
+import type { MetadataRoute } from "next";
+export default function manifest(): MetadataRoute.Manifest { return { name: "Portal Sindicomar", short_name: "Sindicomar", description: "Representatividade e orientação para o comércio.", start_url: "/", display: "standalone", background_color: "#FFFFFF", theme_color: "#004A8D", lang: "pt-BR", icons: [{ src: "/sindicomar-logo-quadrada.png", sizes: "512x512", type: "image/png" }] }; }

@@ -1,0 +1,13 @@
+node_modules/
+.next/
+.vinext/
+dist/
+.wrangler/
+test-results/
+playwright-report/
+coverage/
+.env
+.env.local
+.env.*.local
+*.log
+*.tsbuildinfo
