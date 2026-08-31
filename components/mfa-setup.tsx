@@ -41,6 +41,13 @@ export function MfaSetup() {
       const { data: factors } = await supabase.auth.mfa.listFactors();
       const existing = factors?.totp.find((factor) => factor.status === "verified");
       if (existing) { setFactorId(existing.id); setLoading(false); return; }
+
+      const pendingFactors = factors?.all.filter((factor) => factor.factor_type === "totp" && factor.status === "unverified") ?? [];
+      for (const factor of pendingFactors) {
+        const { error: unenrollError } = await supabase.auth.mfa.unenroll({ factorId: factor.id });
+        if (unenrollError) { setError("Não foi possível reiniciar a configuração do MFA."); setLoading(false); return; }
+      }
+
       const { data, error: enrollError } = await supabase.auth.mfa.enroll({ factorType: "totp", friendlyName: "Administrador Sindicomar" });
       if (enrollError || !data) { setError(enrollError?.message ?? "Não foi possível iniciar o MFA."); setLoading(false); return; }
       setFactorId(data.id); setQrCode(normalizeQrCodeDataUri(data.totp.qr_code)); setSecret(data.totp.secret); setLoading(false);
