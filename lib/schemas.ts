@@ -1,9 +1,13 @@
 import { z } from "zod";
+import { digitsOnly } from "@/lib/masks";
+
+const phoneSchema = z.string().trim().max(30).transform((value) => digitsOnly(value, 11)).refine((value) => value.length >= 10, "Informe um telefone com DDD");
+const cnpjSchema = z.string().trim().max(20).transform((value) => digitsOnly(value, 14)).refine((value) => value.length === 14, "Informe os 14 dígitos do CNPJ");
 
 const baseSubmission = z.object({
   name: z.string().trim().min(3, "Informe seu nome completo").max(120),
   email: z.string().trim().email("Informe um e-mail válido").max(180),
-  phone: z.string().trim().min(8, "Informe um telefone válido").max(30),
+  phone: phoneSchema,
   message: z.string().trim().min(10, "Explique brevemente como podemos ajudar").max(3000),
   preferredChannel: z.enum(["email", "phone", "whatsapp"]),
   privacyAccepted: z.literal(true, { message: "É necessário aceitar o aviso de privacidade" }),
@@ -18,14 +22,14 @@ export const contactSubmissionSchema = baseSubmission.extend({
 
 export const classificationSubmissionSchema = baseSubmission.extend({
   kind: z.literal("classification"),
-  cnpj: z.string().trim().min(14, "Informe o CNPJ").max(20),
+  cnpj: cnpjSchema,
   municipality: z.string().trim().min(2).max(120),
   activity: z.string().trim().min(3).max(300),
 });
 
 export const membershipSubmissionSchema = baseSubmission.extend({
   kind: z.literal("membership"),
-  cnpj: z.string().trim().min(14, "Informe o CNPJ").max(20),
+  cnpj: cnpjSchema,
   companyName: z.string().trim().min(2).max(180),
   municipality: z.string().trim().min(2).max(120),
   activity: z.string().trim().min(3).max(300),

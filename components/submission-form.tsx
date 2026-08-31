@@ -6,6 +6,7 @@ import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { digitsOnly, formatCnpj, formatPhone } from "@/lib/masks";
 
 declare global {
   interface Window {
@@ -17,10 +18,10 @@ const formSchema = z.object({
   kind: z.enum(["contact", "classification", "membership"]),
   name: z.string().trim().min(3, "Informe seu nome completo"),
   email: z.string().trim().email("Informe um e-mail válido"),
-  phone: z.string().trim().min(8, "Informe um telefone válido"),
+  phone: z.string().trim().transform((value) => digitsOnly(value, 11)).refine((value) => value.length >= 10, "Informe um telefone com DDD"),
   preferredChannel: z.enum(["email", "phone", "whatsapp"]),
   subject: z.enum(["cct", "classification", "membership", "benefits", "guides", "press", "other"]).optional(),
-  cnpj: z.string().trim().optional(),
+  cnpj: z.string().trim().transform((value) => digitsOnly(value, 14)).optional(),
   companyName: z.string().trim().optional(),
   municipality: z.string().trim().optional(),
   activity: z.string().trim().optional(),
@@ -30,7 +31,7 @@ const formSchema = z.object({
   sourcePath: z.string().default("/"),
 }).superRefine((data, context) => {
   if (data.kind !== "contact") {
-    if (!data.cnpj || data.cnpj.length < 14) context.addIssue({ code: "custom", path: ["cnpj"], message: "Informe o CNPJ" });
+    if (!data.cnpj || data.cnpj.length !== 14) context.addIssue({ code: "custom", path: ["cnpj"], message: "Informe os 14 dígitos do CNPJ" });
     if (!data.municipality || data.municipality.length < 2) context.addIssue({ code: "custom", path: ["municipality"], message: "Informe o município" });
     if (!data.activity || data.activity.length < 3) context.addIssue({ code: "custom", path: ["activity"], message: "Informe a atividade" });
   }
@@ -51,6 +52,8 @@ export function SubmissionForm({ kind = "contact" }: { kind?: "contact" | "class
     resolver: zodResolver(formSchema),
     defaultValues: { kind, preferredChannel: "whatsapp", privacyAccepted: false, subject: kind === "contact" ? "cct" : kind, turnstileToken: "", sourcePath: typeof window === "undefined" ? "/" : window.location.pathname },
   });
+  const cnpjRegistration = register("cnpj");
+  const phoneRegistration = register("phone");
 
   useEffect(() => {
     if (!siteKey || !scriptReady || !widgetRef.current || !window.turnstile || widgetId.current) return;
@@ -75,10 +78,10 @@ export function SubmissionForm({ kind = "contact" }: { kind?: "contact" | "class
       <input type="hidden" {...register("kind")} /><input type="hidden" {...register("sourcePath")} /><input type="hidden" {...register("turnstileToken")} />
       {kind === "contact" && <label className="field field-full"><span>Assunto</span><select {...register("subject")}><option value="cct">Convenções e relações do trabalho</option><option value="classification">Enquadramento</option><option value="membership">Associação</option><option value="benefits">Serviços e benefícios</option><option value="guides">Contribuições e guias</option><option value="press">Imprensa</option><option value="other">Outro assunto</option></select></label>}
       {kind === "membership" && <Field label="Razão social ou nome da empresa" error={errors.companyName?.message}><input {...register("companyName")} autoComplete="organization" /></Field>}
-      {companyFields && <Field label="CNPJ" error={errors.cnpj?.message}><input {...register("cnpj")} inputMode="numeric" placeholder="00.000.000/0000-00" /></Field>}
+      {companyFields && <Field label="CNPJ" error={errors.cnpj?.message}><input {...cnpjRegistration} inputMode="numeric" autoComplete="off" maxLength={18} placeholder="00.000.000/0000-00" onChange={(event) => { event.currentTarget.value = formatCnpj(event.currentTarget.value); cnpjRegistration.onChange(event); }} /></Field>}
       <Field label="Nome do responsável" error={errors.name?.message}><input {...register("name")} autoComplete="name" /></Field>
       <Field label="E-mail" error={errors.email?.message}><input {...register("email")} type="email" autoComplete="email" /></Field>
-      <Field label="Telefone" error={errors.phone?.message}><input {...register("phone")} type="tel" autoComplete="tel" /></Field>
+      <Field label="Telefone" error={errors.phone?.message}><input {...phoneRegistration} type="tel" inputMode="tel" autoComplete="tel" maxLength={15} placeholder="(45) 99999-9999" onChange={(event) => { event.currentTarget.value = formatPhone(event.currentTarget.value); phoneRegistration.onChange(event); }} /></Field>
       {companyFields && <Field label="Município" error={errors.municipality?.message}><input {...register("municipality")} /></Field>}
       {companyFields && <label className="field field-full"><span>Atividade principal</span><input {...register("activity")} />{errors.activity && <small className="field-error">{errors.activity.message}</small>}</label>}
       <label className="field field-full"><span>Como prefere receber o retorno?</span><select {...register("preferredChannel")}><option value="whatsapp">WhatsApp</option><option value="email">E-mail</option><option value="phone">Ligação</option></select></label>
