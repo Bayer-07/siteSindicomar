@@ -87,7 +87,7 @@ export function SubmissionForm({ kind = "contact" }: { kind?: "contact" | "class
       {errors.privacyAccepted && <small className="field-error field-full">{errors.privacyAccepted.message}</small>}
       {siteKey && <div ref={widgetRef} className="field-full" />}
       {serverError && <p className="form-error field-full" role="alert">{serverError}</p>}
-      <div className="form-actions field-full"><button className="button button-primary" disabled={isSubmitting} type="submit">{isSubmitting ? <><Loader2 className="spin" size={18} /> Enviando…</> : "Enviar solicitação"}</button><small>Se o e-mail falhar, o registro permanece salvo no painel.</small></div>
+      <div className="form-actions field-full"><button className="button button-primary" disabled={isSubmitting} type="submit">{isSubmitting ? <><Loader2 className="spin" size={18} /> Enviando…</> : "Enviar solicitação"}</button></div>
     </form>
   );
 }
