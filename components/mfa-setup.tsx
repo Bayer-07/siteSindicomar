@@ -5,6 +5,28 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
+function normalizeQrCodeDataUri(value: string) {
+  if (!value.startsWith("data:image/svg+xml")) return value;
+
+  const separator = value.indexOf(",");
+  if (separator === -1) return value;
+
+  const payload = value.slice(separator + 1);
+  let svg = payload;
+
+  try {
+    svg = decodeURIComponent(payload);
+  } catch {
+    // O Supabase também pode devolver o SVG sem codificação de URL.
+  }
+
+  const bytes = new TextEncoder().encode(svg);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+
+  return `data:image/svg+xml;base64,${window.btoa(binary)}`;
+}
+
 export function MfaSetup() {
   const [factorId, setFactorId] = useState("");
   const [qrCode, setQrCode] = useState("");
@@ -21,7 +43,7 @@ export function MfaSetup() {
       if (existing) { setFactorId(existing.id); setLoading(false); return; }
       const { data, error: enrollError } = await supabase.auth.mfa.enroll({ factorType: "totp", friendlyName: "Administrador Sindicomar" });
       if (enrollError || !data) { setError(enrollError?.message ?? "Não foi possível iniciar o MFA."); setLoading(false); return; }
-      setFactorId(data.id); setQrCode(data.totp.qr_code); setSecret(data.totp.secret); setLoading(false);
+      setFactorId(data.id); setQrCode(normalizeQrCodeDataUri(data.totp.qr_code)); setSecret(data.totp.secret); setLoading(false);
     }
     void prepare();
   }, []);
