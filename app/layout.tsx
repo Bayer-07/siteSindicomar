@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     siteName: "Sindicomar",
     title: "Sindicomar | Comércio forte, orientação segura",
     description: "Representatividade, informação trabalhista e apoio prático para o comércio de Marechal Cândido Rondon e região.",
-    images: [{ url: "/sindicomar-logo-horizontal.png", width: 800, height: 287, alt: "Sindicomar PR" }],
+    images: [{ url: "/sindicomar-logo-horizontal.png", width: 2000, height: 600, alt: "Sindicomar PR" }],
   },
   twitter: { card: "summary_large_image", title: "Sindicomar", description: "Comércio forte, orientação segura.", images: ["/sindicomar-logo-horizontal.png"] },
 };

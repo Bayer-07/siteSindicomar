@@ -8,7 +8,7 @@ export function SiteFooter() {
     <footer className="site-footer">
       <div className="shell footer-grid">
         <div className="footer-brand">
-          <div className="footer-logo-card"><Image src="/sindicomar-logo-horizontal.png" alt="Sindicomar PR" width={800} height={287} /></div>
+          <div className="footer-logo-card"><Image src="/sindicomar-logo-horizontal.png" alt="Sindicomar PR" width={2000} height={600} /></div>
           <p>Representatividade, orientação e apoio prático para fortalecer o comércio de Marechal Cândido Rondon e região.</p>
         </div>
         <div><h2>Navegação</h2><nav>{navigation.map((item) => <Link key={item.href} href={item.href}>{item.label}</Link>)}</nav></div>

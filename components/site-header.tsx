@@ -38,7 +38,7 @@ export function SiteHeader() {
       <header className="site-header">
         <div className="shell header-inner">
           <Link href="/" aria-label="Sindicomar — página inicial">
-            <Image className="brand-logo" src="/sindicomar-logo-horizontal.png" alt="Sindicomar PR — Marechal Cândido Rondon e região" width={800} height={287} priority />
+            <Image className="brand-logo" src="/sindicomar-logo-horizontal.png" alt="Sindicomar PR — Marechal Cândido Rondon e região" width={2000} height={600} priority />
           </Link>
           <nav className="desktop-nav" aria-label="Navegação principal">
             {navigation.map((item) => <Link href={item.href} key={item.href}>{item.label}</Link>)}
@@ -69,7 +69,7 @@ export function SiteHeader() {
                 <Dialog.Backdrop className="dialog-backdrop" />
                 <Dialog.Viewport className="mobile-menu-viewport">
                   <Dialog.Popup className="mobile-menu-dialog">
-                    <div className="dialog-heading"><Image src="/sindicomar-logo-horizontal.png" alt="Sindicomar PR" width={800} height={287} /><Dialog.Close className="icon-button" aria-label="Fechar menu"><X size={20} /></Dialog.Close></div>
+                    <div className="dialog-heading"><Image src="/sindicomar-logo-horizontal.png" alt="Sindicomar PR" width={2000} height={600} /><Dialog.Close className="icon-button" aria-label="Fechar menu"><X size={20} /></Dialog.Close></div>
                     <Dialog.Title className="sr-only">Menu principal</Dialog.Title>
                     <nav aria-label="Navegação móvel">{navigation.map((item) => <Dialog.Close key={item.href} render={<Link href={item.href} />}>{item.label}</Dialog.Close>)}<Dialog.Close render={<Link href="/associe-se" />}>Associe-se</Dialog.Close><Dialog.Close render={<Link href="/contato" />}>Contato</Dialog.Close></nav>
                     <Dialog.Close className="button button-primary" render={<Link href="/convencoes" />}>Consultar convenções</Dialog.Close>

@@ -22,7 +22,7 @@ export const adminModules = [
 export function AdminSidebar() {
   const pathname = usePathname();
 
-  return <aside className="admin-sidebar"><Image src="/sindicomar-logo-horizontal.png" alt="Sindicomar PR" width={800} height={287} /><nav aria-label="Navegação do painel">{adminModules.map(({ label, icon: Icon, href }) => {
+  return <aside className="admin-sidebar"><Image src="/sindicomar-logo-horizontal.png" alt="Sindicomar PR" width={2000} height={600} /><nav aria-label="Navegação do painel">{adminModules.map(({ label, icon: Icon, href }) => {
     const isActive = href === "/admin" ? pathname === href : pathname.startsWith(href);
     return <Link className={isActive ? "active" : undefined} aria-current={isActive ? "page" : undefined} key={href} href={href}><Icon size={18} />{label}</Link>;
   })}</nav><form action="/auth/signout" method="post"><button type="submit">Sair do painel</button></form></aside>;
