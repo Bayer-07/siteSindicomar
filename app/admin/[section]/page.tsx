@@ -23,10 +23,11 @@ const sections = {
 export function generateStaticParams() { return Object.keys(sections).map((section) => ({ section })); }
 export default async function AdminSectionPage({ params }: { params: Promise<{ section: string }> }) {
   if (!isSupabaseAdminConfigured()) redirect("/admin/login");
-  if (!(await getVerifiedAdmin())) redirect("/admin/login");
+  const user = await getVerifiedAdmin();
+  if (!user) redirect("/admin/login");
   const sectionKey = (await params).section as keyof typeof sections;
   const config = sections[sectionKey]; if (!config) notFound();
   const admin = createSupabaseAdminClient();
   const { data } = await admin.from(config.table).select("*").order("created_at", { ascending: false }).limit(50);
-  return <AdminModule section={sectionKey} table={config.table} title={config.title} description={config.description} records={(data ?? []) as Record<string, unknown>[]} createEnabled={sectionKey !== "solicitacoes"} />;
+  return <AdminModule email={user.email ?? "Administrador"} section={sectionKey} table={config.table} title={config.title} description={config.description} records={(data ?? []) as Record<string, unknown>[]} createEnabled={sectionKey !== "solicitacoes"} />;
 }

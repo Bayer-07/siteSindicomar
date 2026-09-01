@@ -433,7 +433,9 @@ h1,h2,h3 { font-family:var(--font-manrope),Arial,sans-serif; letter-spacing:-.03
 .admin-sidebar>img { width:195px; height:auto; border-radius:8px; background:#fff; padding:8px; }
 .admin-sidebar nav { display:grid; gap:4px; margin-top:35px; }
 .admin-sidebar nav a { display:flex; align-items:center; gap:10px; border-radius:9px; padding:11px; color:#d8e8f6; font-size:12px; font-weight:700; }
+.admin-sidebar nav a.active { background:#fff; color:var(--blue); box-shadow:0 8px 18px rgb(0 0 0 / 10%); }
 .admin-sidebar nav a:hover { background:rgb(255 255 255 / 10%); color:#fff; }
+.admin-sidebar nav a.active:hover { background:#fff; color:var(--blue); }
 .admin-sidebar form { margin-top:auto; }
 .admin-sidebar form button { width:100%; border:1px solid rgb(255 255 255 / 25%); border-radius:9px; background:transparent; color:#fff; padding:10px; cursor:pointer; }
 .admin-main { min-width:0; }
