@@ -1,6 +1,6 @@
 "use client";
 
-import { BellRing, CalendarDays, FileText, Handshake, Inbox, LayoutDashboard, Newspaper, Settings, Users } from "lucide-react";
+import { CalendarDays, FileText, Handshake, Inbox, LayoutDashboard, Newspaper, Settings, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -14,7 +14,6 @@ export const adminModules = [
   { label: "Serviços", icon: Handshake, href: "/admin/servicos" },
   { label: "Diretoria", icon: Users, href: "/admin/institucional" },
   { label: "Parceiros", icon: Handshake, href: "/admin/parceiros" },
-  { label: "Alertas", icon: BellRing, href: "/admin/alertas" },
   { label: "Solicitações", icon: Inbox, href: "/admin/solicitacoes" },
   { label: "Configurações", icon: Settings, href: "/admin/configuracoes" },
 ] as const;
