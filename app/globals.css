@@ -212,7 +212,7 @@ h1,h2,h3 { font-family:var(--font-manrope),Arial,sans-serif; letter-spacing:-.03
 .button-gold { background:var(--gold); color:#18212b; }
 .site-footer { background:#002a50; color:#fff; padding:70px 0 22px; }
 .footer-grid { display:grid; grid-template-columns:1.5fr .7fr .75fr 1.2fr; gap:55px; }
-.footer-logo-card { width:230px; border-radius:10px; background:#fff; padding:11px; }
+.footer-logo-card { width:230px; }
 .footer-logo-card img { display:block; width:100%; height:auto; }
 .footer-brand p { max-width:360px; margin-top:20px; color:#bdd6eb; font-size:13px; line-height:1.7; }
 .footer-grid h2 { margin-bottom:18px; color:#f2ce82; font-size:13px; text-transform:uppercase; letter-spacing:.08em; }
@@ -430,7 +430,7 @@ h1,h2,h3 { font-family:var(--font-manrope),Arial,sans-serif; letter-spacing:-.03
 .mfa-card details code { word-break:break-all; }
 .admin-app { min-height:100vh; display:grid; grid-template-columns:255px 1fr; background:#f5f7fa; }
 .admin-sidebar { position:sticky; top:0; height:100vh; display:flex; flex-direction:column; background:#003665; color:#fff; padding:25px 18px; }
-.admin-sidebar>img { width:195px; height:auto; border-radius:8px; background:#fff; padding:8px; }
+.admin-sidebar>img { display:block; width:195px; height:auto; }
 .admin-sidebar nav { display:grid; gap:4px; margin-top:35px; }
 .admin-sidebar nav a { display:flex; align-items:center; gap:10px; border-radius:9px; padding:11px; color:#d8e8f6; font-size:12px; font-weight:700; }
 .admin-sidebar nav a.active { background:#fff; color:var(--blue); box-shadow:0 8px 18px rgb(0 0 0 / 10%); }
