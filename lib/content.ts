@@ -128,9 +128,8 @@ function mapPost(row: DatabaseRow): Post {
   };
 }
 
-function mergeBySlug<T extends { slug: string }>(databaseItems: T[], fallbackItems: T[]) {
-  const seen = new Set(databaseItems.map((item) => item.slug));
-  return [...databaseItems, ...fallbackItems.filter((item) => !seen.has(item.slug))];
+function databaseOrFallback<T>(databaseItems: T[], fallbackItems: T[]) {
+  return databaseItems.length ? databaseItems : fallbackItems;
 }
 
 export async function getPublicCollections(): Promise<PublicCollections> {
@@ -141,10 +140,10 @@ export async function getPublicCollections(): Promise<PublicCollections> {
     publishedRows("posts"),
   ]);
   return {
-    collectiveDocuments: mergeBySlug(documentRows.map(mapDocument).filter((item) => item.slug), fallbackDocuments),
-    agendaItems: mergeBySlug(agendaRows.map(mapAgendaItem).filter((item) => item.slug), fallbackAgendaItems),
-    services: mergeBySlug(serviceRows.map(mapService).filter((item) => item.slug), fallbackServices),
-    posts: mergeBySlug(postRows.map(mapPost).filter((item) => item.slug), fallbackPosts),
+    collectiveDocuments: databaseOrFallback(documentRows.map(mapDocument).filter((item) => item.slug), fallbackDocuments),
+    agendaItems: databaseOrFallback(agendaRows.map(mapAgendaItem).filter((item) => item.slug), fallbackAgendaItems),
+    services: databaseOrFallback(serviceRows.map(mapService).filter((item) => item.slug), fallbackServices),
+    posts: databaseOrFallback(postRows.map(mapPost).filter((item) => item.slug), fallbackPosts),
   };
 }
 
