@@ -6,6 +6,7 @@ import { PublicLink as Link } from "@/components/public-link";
 import { getPublicPartners } from "@/lib/content";
 
 export const metadata = { title: "O Sindicomar", description: "Conheça a identidade, a atuação e a liderança do Sindicomar." };
+export const dynamic = "force-dynamic";
 
 export default async function AboutPage() {
   const partners = await getPublicPartners();
