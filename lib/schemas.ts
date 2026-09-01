@@ -12,6 +12,9 @@ const baseSubmission = z.object({
   preferredChannel: z.enum(["email", "phone", "whatsapp"]),
   privacyAccepted: z.literal(true, { message: "É necessário aceitar o aviso de privacidade" }),
   turnstileToken: z.string().optional().default(""),
+  // Honeypot used while Turnstile is unavailable and as a second signal when
+  // Turnstile is enabled. It must remain empty for real visitors.
+  website: z.string().max(200).optional().default(""),
   sourcePath: z.string().trim().max(300).optional().default("/"),
 });
 

@@ -28,6 +28,7 @@ const formSchema = z.object({
   message: z.string().trim().min(10, "Explique brevemente como podemos ajudar"),
   privacyAccepted: z.boolean().refine((value) => value, { message: "Aceite o aviso de privacidade para continuar" }),
   turnstileToken: z.string().default(""),
+  website: z.string().max(200).default(""),
   sourcePath: z.string().default("/"),
 }).superRefine((data, context) => {
   if (data.kind !== "contact") {
@@ -50,7 +51,7 @@ export function SubmissionForm({ kind = "contact" }: { kind?: "contact" | "class
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<FormValues, unknown, FormOutput>({
     resolver: zodResolver(formSchema),
-    defaultValues: { kind, preferredChannel: "whatsapp", privacyAccepted: false, subject: kind === "contact" ? "cct" : kind, turnstileToken: "", sourcePath: typeof window === "undefined" ? "/" : window.location.pathname },
+    defaultValues: { kind, preferredChannel: "whatsapp", privacyAccepted: false, subject: kind === "contact" ? "cct" : kind, turnstileToken: "", website: "", sourcePath: typeof window === "undefined" ? "/" : window.location.pathname },
   });
   const cnpjRegistration = register("cnpj");
   const phoneRegistration = register("phone");
@@ -76,6 +77,7 @@ export function SubmissionForm({ kind = "contact" }: { kind?: "contact" | "class
     <form className="submission-form" onSubmit={handleSubmit(onSubmit)} noValidate>
       {siteKey && <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="afterInteractive" onLoad={() => setScriptReady(true)} />}
       <input type="hidden" {...register("kind")} /><input type="hidden" {...register("sourcePath")} /><input type="hidden" {...register("turnstileToken")} />
+      <label className="field-honeypot" aria-hidden="true"><span>Website</span><input tabIndex={-1} autoComplete="off" {...register("website")} /></label>
       {kind === "contact" && <label className="field field-full"><span>Assunto</span><select {...register("subject")}><option value="cct">Convenções e relações do trabalho</option><option value="classification">Enquadramento</option><option value="membership">Associação</option><option value="benefits">Serviços e benefícios</option><option value="guides">Contribuições e guias</option><option value="press">Imprensa</option><option value="other">Outro assunto</option></select></label>}
       {kind === "membership" && <Field label="Razão social ou nome da empresa" error={errors.companyName?.message}><input {...register("companyName")} autoComplete="organization" /></Field>}
       {companyFields && <Field label="CNPJ" error={errors.cnpj?.message}><input {...cnpjRegistration} inputMode="numeric" autoComplete="off" maxLength={18} placeholder="00.000.000/0000-00" onChange={(event) => { event.currentTarget.value = formatCnpj(event.currentTarget.value); cnpjRegistration.onChange(event); }} /></Field>}

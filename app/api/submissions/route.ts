@@ -4,7 +4,7 @@ import { createProtocol } from "@/lib/protocol";
 import { submissionSchema } from "@/lib/schemas";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/config";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { validateTurnstile } from "@/lib/turnstile";
+import { isTurnstileConfigured, validateTurnstile } from "@/lib/turnstile";
 
 export async function POST(request: NextRequest) {
   let json: unknown;
@@ -12,8 +12,11 @@ export async function POST(request: NextRequest) {
   const parsed = submissionSchema.safeParse(json);
   if (!parsed.success) return NextResponse.json({ message: parsed.error.issues[0]?.message ?? "Revise os dados informados.", issues: parsed.error.flatten() }, { status: 422 });
 
+  // Bots that fill the hidden field are rejected before touching the database.
+  if (parsed.data.website) return NextResponse.json({ message: "Não foi possível registrar a solicitação." }, { status: 400 });
+
   const remoteIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  if (!(await validateTurnstile(parsed.data.turnstileToken, remoteIp))) return NextResponse.json({ message: "Não foi possível validar a proteção antispam. Atualize a página e tente novamente." }, { status: 400 });
+  if (isTurnstileConfigured() && !(await validateTurnstile(parsed.data.turnstileToken, remoteIp))) return NextResponse.json({ message: "Não foi possível validar a proteção antispam. Atualize a página e tente novamente." }, { status: 400 });
 
   const protocol = createProtocol();
   let submissionId: string | null = null;
