@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { formatProtocol } from "@/lib/masks";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/config";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
@@ -7,7 +8,7 @@ export const dynamic = "force-dynamic";
 const protocolPattern = /^SIN-\d{8}-[A-F0-9]{6}$/i;
 
 export async function GET(request: Request) {
-  const protocol = new URL(request.url).searchParams.get("protocol")?.trim().toUpperCase() ?? "";
+  const protocol = formatProtocol(new URL(request.url).searchParams.get("protocol") ?? "");
   if (!protocolPattern.test(protocol)) return NextResponse.json({ message: "Informe um protocolo válido." }, { status: 400 });
   if (!isSupabaseAdminConfigured()) return NextResponse.json({ message: "A consulta está temporariamente indisponível." }, { status: 503 });
 

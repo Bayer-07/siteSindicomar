@@ -23,3 +23,19 @@ export function formatPhone(value: string) {
 
   return `(${areaCode}) ${firstPart}${secondPart ? `-${secondPart}` : ""}`;
 }
+
+/**
+ * Aplica a máscara do protocolo mesmo quando o valor é colado com ou sem
+ * separadores. O identificador tem 17 caracteres alfanuméricos e dois hífens:
+ * SIN-AAAAMMDD-XXXXXX.
+ */
+export function formatProtocol(value: string) {
+  const normalized = value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 17);
+  if (normalized.length <= 3) return normalized;
+
+  const prefix = normalized.slice(0, 3);
+  const date = normalized.slice(3, 11);
+  const suffix = normalized.slice(11);
+
+  return `${prefix}-${date}${suffix ? `-${suffix}` : ""}`;
+}
