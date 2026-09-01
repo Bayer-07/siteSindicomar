@@ -1,11 +1,14 @@
 import { Building2, Handshake, Landmark, Scale, ShieldCheck, Target, Users } from "lucide-react";
 import Image from "next/image";
 import { PageHero } from "@/components/page-hero";
+import { PartnerSection } from "@/components/partner-section";
 import { PublicLink as Link } from "@/components/public-link";
+import { getPublicPartners } from "@/lib/content";
 
 export const metadata = { title: "O Sindicomar", description: "Conheça a identidade, a atuação e a liderança do Sindicomar." };
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const partners = await getPublicPartners();
   return <main id="conteudo">
     <PageHero eyebrow="Institucional" title="Representação empresarial com presença regional." description="O Sindicomar é a entidade patronal do comércio varejista de Marechal Cândido Rondon e microrregião, filiada à Fecomércio PR." />
     <section className="content-section"><div className="shell narrow-content">
@@ -15,6 +18,7 @@ export default function AboutPage() {
     </div></section>
     <section className="content-section surface-section"><div className="shell"><div className="section-heading"><div><span className="eyebrow">Frentes de atuação</span><h2>Uma entidade estruturada para servir ao comércio.</h2></div><p>A atuação institucional combina relações do trabalho, desenvolvimento empresarial e articulação regional.</p></div><div className="feature-grid"><article><Scale /><h3>Relações do trabalho</h3><p>Negociação coletiva, organização de instrumentos e encaminhamento de demandas empresariais.</p></article><article><Building2 /><h3>Desenvolvimento empresarial</h3><p>Informação, capacitação e aproximação com iniciativas que fortalecem a gestão.</p></article><article><Landmark /><h3>Representação institucional</h3><p>Diálogo com poder público, entidades empresariais e parceiros do Sistema Comércio.</p></article></div></div></section>
     <section className="content-section"><div className="shell leadership-layout"><div><span className="eyebrow">Liderança</span><h2>Presidência do Sindicomar</h2><p>A direção representa a entidade no relacionamento com empresas, sindicatos, instituições e poder público.</p><Link className="text-link" href="/contato">Falar com a entidade</Link></div><article className="leadership-card"><span className="leadership-monogram"><Image className="leadership-monogram" src="https://res.cloudinary.com/byysbeud/image/upload/v1787936470/5e895e66-023f-4e36-8850-cea8a3e1f4f3.png" alt="" width={80} height={80} unoptimized /></span><div><small>Presidente</small><h3>Ademar Bayer</h3><p>Representante do Sindicomar junto à Fecomércio PR e às articulações institucionais do comércio local.</p></div></article></div></section>
+    <PartnerSection partners={partners} />
     <section className="commerce-system"><div className="shell commerce-system-inner"><Users /><div><span className="eyebrow">Sistema Comércio</span><h2>Uma entidade integrada à Fecomércio PR.</h2><p>A filiação amplia a conexão regional do Sindicomar com a rede sindical do comércio de bens, serviços e turismo no Paraná.</p></div><Link className="button button-gold" href="/servicos/beneficios-sistema-comercio">Conhecer essa conexão</Link></div></section>
   </main>;
 }

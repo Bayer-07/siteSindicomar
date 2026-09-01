@@ -1,13 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 import type { JSONContent } from "@tiptap/core";
 import { agendaItems as fallbackAgendaItems, collectiveDocuments as fallbackDocuments, posts as fallbackPosts, services as fallbackServices } from "@/data/site-content";
-import type { AgendaItem, CollectiveDocument, DocumentStatus, Post, Service } from "@/types/content";
+import type { AgendaItem, CollectiveDocument, DocumentStatus, Partner, Post, Service } from "@/types/content";
 
 type PublicCollections = {
   collectiveDocuments: CollectiveDocument[];
   agendaItems: AgendaItem[];
   services: Service[];
   posts: Post[];
+  partners: Partner[];
 };
 
 type DatabaseRow = Record<string, unknown>;
@@ -142,22 +143,51 @@ function mapPost(row: DatabaseRow): Post {
   };
 }
 
+function externalUrl(value: string) {
+  if (!value) return undefined;
+  try {
+    const parsed = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function mapPartner(row: DatabaseRow): Partner {
+  const client = publicClient();
+  const logoPath = stringValue(row, "logo_path");
+  const logoUrl = client && logoPath ? client.storage.from("public-images").getPublicUrl(logoPath).data.publicUrl : undefined;
+  return {
+    id: stringValue(row, "id"),
+    name: stringValue(row, "name"),
+    description: stringValue(row, "description"),
+    websiteUrl: externalUrl(stringValue(row, "website_url")),
+    validFrom: stringValue(row, "valid_from") || undefined,
+    validUntil: stringValue(row, "valid_until") || undefined,
+    displayOrder: numberValue(row, "display_order"),
+    logoUrl,
+  };
+}
+
 function databaseOrFallback<T>(databaseItems: T[] | null, fallbackItems: T[]) {
   return databaseItems === null ? fallbackItems : databaseItems;
 }
 
 export async function getPublicCollections(): Promise<PublicCollections> {
-  const [documentRows, agendaRows, serviceRows, postRows] = await Promise.all([
+  const [documentRows, agendaRows, serviceRows, postRows, partnerRows] = await Promise.all([
     publishedRows("collective_documents"),
     publishedRows("agenda_items"),
     publishedRows("services"),
     publishedRows("posts"),
+    publishedRows("partners"),
   ]);
+  const partners = partnerRows?.map(mapPartner).filter((item) => item.id && item.name).sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, "pt-BR")) ?? null;
   return {
     collectiveDocuments: databaseOrFallback(documentRows?.map(mapDocument).filter((item) => item.slug) ?? null, fallbackDocuments),
     agendaItems: databaseOrFallback(agendaRows?.map(mapAgendaItem).filter((item) => item.slug) ?? null, fallbackAgendaItems),
     services: databaseOrFallback(serviceRows?.map(mapService).filter((item) => item.slug) ?? null, fallbackServices),
     posts: databaseOrFallback(postRows?.map(mapPost).filter((item) => item.slug) ?? null, fallbackPosts),
+    partners: databaseOrFallback(partners, []),
   };
 }
 
@@ -165,6 +195,11 @@ export async function getPublicDocuments() { return (await getPublicCollections(
 export async function getPublicAgendaItems() { return (await getPublicCollections()).agendaItems; }
 export async function getPublicServices() { return (await getPublicCollections()).services; }
 export async function getPublicPosts() { return (await getPublicCollections()).posts; }
+export async function getPublicPartners() {
+  const rows = await publishedRows("partners");
+  const partners = rows?.map(mapPartner).filter((item) => item.id && item.name).sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, "pt-BR")) ?? null;
+  return databaseOrFallback(partners, []);
+}
 
 export function getCurrentDocuments() {
   const activeStatuses: DocumentStatus[] = ["current", "extended", "negotiating"];
@@ -201,7 +236,7 @@ function searchCandidates(query: string, collections: PublicCollections) {
 }
 
 export function searchPublishedContent(query: string) {
-  return searchCandidates(query, { collectiveDocuments: fallbackDocuments, agendaItems: fallbackAgendaItems, services: fallbackServices, posts: fallbackPosts });
+  return searchCandidates(query, { collectiveDocuments: fallbackDocuments, agendaItems: fallbackAgendaItems, services: fallbackServices, posts: fallbackPosts, partners: [] });
 }
 
 export async function searchPublishedContentAsync(query: string) {

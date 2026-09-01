@@ -64,3 +64,14 @@ export interface Post {
   coverImageUrl?: string;
   content?: JSONContent;
 }
+
+export interface Partner {
+  id: string;
+  name: string;
+  description: string;
+  websiteUrl?: string;
+  validFrom?: string;
+  validUntil?: string;
+  displayOrder: number;
+  logoUrl?: string;
+}

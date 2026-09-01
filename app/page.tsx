@@ -1,5 +1,6 @@
 import { ArrowRight, BriefcaseBusiness, Building2, CalendarDays, FileCheck2, Handshake, Landmark, MessageCircle, Scale, SearchCheck, ShieldCheck } from "lucide-react";
 import { PublicLink as Link } from "@/components/public-link";
+import { PartnerSection } from "@/components/partner-section";
 import { AgendaStatusBadge, DocumentStatusBadge } from "@/components/status-badge";
 import { StructuredData } from "@/components/structured-data";
 import { documentTypeLabels } from "@/data/site-content";
@@ -15,7 +16,7 @@ const shortcuts = [
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const { agendaItems, collectiveDocuments, posts, services } = await getPublicCollections();
+  const { agendaItems, collectiveDocuments, posts, services, partners } = await getPublicCollections();
   const featuredDocuments = collectiveDocuments.slice(0, 2);
   return (
     <main id="conteudo">
@@ -68,6 +69,8 @@ export default async function Home() {
       <section className="content-section" id="agenda">
         <div className="shell split-home"><div><div className="section-heading single"><div><span className="eyebrow">Agenda institucional</span><h2>Registros do comércio.</h2></div></div><div className="agenda-preview">{agendaItems.map((item) => <Link href="/agenda" key={item.id}><time dateTime={item.date}><strong>{new Intl.DateTimeFormat("pt-BR", { day: "2-digit" }).format(new Date(item.date))}</strong><span>{new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(new Date(item.date)).replace(".", "")}</span></time><div><AgendaStatusBadge status={item.status} /><h3>{item.title}</h3><p>{item.municipality}</p></div><ArrowRight size={18} /></Link>)}</div><Link className="text-link below-list" href="/agenda">Consultar agenda e comunicados <ArrowRight size={15} /></Link></div><div><div className="section-heading single"><div><span className="eyebrow">Conteúdo empresarial</span><h2>Informação para decidir melhor.</h2></div></div><div className="post-preview">{posts.map((post) => <Link href={`/noticias/${post.slug}`} key={post.slug}><small>{post.category} · {new Intl.DateTimeFormat("pt-BR").format(new Date(`${post.publishedAt}T12:00:00`))}</small><h3>{post.title}</h3><p>{post.excerpt}</p></Link>)}</div><Link className="text-link below-list" href="/noticias">Ver todas as publicações <ArrowRight size={15} /></Link></div></div>
       </section>
+
+      <PartnerSection partners={partners} />
 
       <section className="membership-cta"><div className="shell membership-inner"><div><span className="eyebrow">Faça parte</span><h2>Uma entidade mais forte começa com empresas participando.</h2><p>Conheça a diferença entre representação e associação e solicite uma conversa com a equipe.</p></div><Link className="button button-gold" href="/associe-se">Quero conhecer a associação <ArrowRight size={18} /></Link></div></section>
     </main>
