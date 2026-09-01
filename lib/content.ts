@@ -49,15 +49,16 @@ function richTextParagraphs(value: unknown): string[] {
   if (!value || typeof value !== "object") return [];
   const root = value as { content?: unknown };
   if (!Array.isArray(root.content)) return [];
-  return root.content.map((node) => {
-    if (!node || typeof node !== "object") return "";
-    const paragraph = node as { content?: unknown };
-    if (!Array.isArray(paragraph.content)) return "";
-    return paragraph.content.map((child) => {
-      if (!child || typeof child !== "object") return "";
-      return typeof (child as { text?: unknown }).text === "string" ? (child as { text: string }).text : "";
-    }).join("").trim();
-  }).filter(Boolean);
+  function extract(node: unknown): string[] {
+    if (!node || typeof node !== "object") return [];
+    const current = node as { type?: unknown; text?: unknown; content?: unknown };
+    if (typeof current.text === "string") return [current.text];
+    if (!Array.isArray(current.content)) return [];
+    const children = current.content.flatMap(extract);
+    if (["paragraph", "heading", "listItem", "blockquote", "codeBlock"].includes(String(current.type))) return [children.join("").trim()];
+    return children;
+  }
+  return root.content.flatMap(extract).filter(Boolean);
 }
 
 function mapDocument(row: DatabaseRow): CollectiveDocument {
@@ -115,7 +116,10 @@ function mapService(row: DatabaseRow): Service {
 }
 
 function mapPost(row: DatabaseRow): Post {
+  const client = publicClient();
   const body = richTextParagraphs(row.content);
+  const coverImagePath = stringValue(row, "cover_image_path");
+  const coverImageUrl = client && coverImagePath ? client.storage.from("public-images").getPublicUrl(coverImagePath).data.publicUrl : undefined;
   return {
     slug: stringValue(row, "slug"),
     title: stringValue(row, "title"),
@@ -125,6 +129,7 @@ function mapPost(row: DatabaseRow): Post {
     updatedAt: dateOnlyValue(row, "updated_at", dateOnlyValue(row, "published_at")),
     author: stringValue(row, "author_name"),
     body: body.length ? body : [stringValue(row, "excerpt")],
+    coverImageUrl,
   };
 }
 

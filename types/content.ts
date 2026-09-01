@@ -58,4 +58,5 @@ export interface Post {
   updatedAt: string;
   author: string;
   body: string[];
+  coverImageUrl?: string;
 }
