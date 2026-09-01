@@ -358,6 +358,25 @@ h1,h2,h3 { font-family:var(--font-manrope),Arial,sans-serif; letter-spacing:-.03
 .contact-details span { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; }
 .contact-details svg { color:var(--blue); }
 .contact-details small { flex-basis:100%; color:var(--muted); }
+.status-lookup-section { padding-top:0; }
+.status-lookup-card { width:min(860px,100%); margin-inline:auto; border:1px solid var(--line); border-radius:16px; background:var(--surface); padding:30px; }
+.status-lookup-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:25px; }
+.status-lookup-heading h2 { max-width:620px; margin:0 0 10px; font-size:clamp(27px,3.2vw,39px); line-height:1.15; }
+.status-lookup-heading p { max-width:650px; margin:0; color:var(--muted); font-size:14px; line-height:1.65; }
+.status-lookup-icon { width:50px; height:50px; display:grid; flex:0 0 auto; place-items:center; border-radius:12px; background:var(--blue); color:#fff; }
+.status-lookup-form { display:flex; gap:10px; margin-top:25px; }
+.status-lookup-form label { display:block; flex:1; }
+.status-lookup-form input { width:100%; min-height:46px; border:1px solid #cfd7e2; border-radius:9px; background:#fff; color:var(--ink); padding:10px 13px; font:inherit; font-size:13px; letter-spacing:.04em; }
+.status-lookup-form input:focus { border-color:var(--blue); outline:3px solid rgb(0 74 141 / 13%); }
+.status-lookup-error { display:flex; align-items:center; gap:8px; margin:15px 0 0; border-radius:9px; background:#fff0ef; color:#912d27; padding:12px; font-size:13px; }
+.status-lookup-result { margin-top:20px; border:1px solid #b8dfcd; border-radius:12px; background:#f1fbf6; padding:18px; color:#145d3c; }
+.status-lookup-result-top { display:flex; align-items:center; gap:11px; }
+.status-lookup-result-top>div { display:grid; gap:3px; min-width:0; flex:1; }
+.status-lookup-result-top small { color:#35765a; font-size:11px; }
+.status-lookup-result-top strong { color:#145d3c; font:800 17px var(--font-manrope); }
+.status-lookup-check { display:grid; place-items:center; flex:0 0 auto; }
+.status-lookup-result>p { margin:14px 0 7px; color:#2b624a; font-size:13px; line-height:1.6; }
+.status-lookup-result>small { color:#4a8068; font-size:11px; }
 .worker-guidance { margin-top:32px; border-left:4px solid var(--gold); background:#fff; padding:20px; }
 .worker-guidance p { margin:6px 0 0; color:var(--muted); font-size:13px; line-height:1.6; }
 .legal-content { max-width:820px; }
@@ -446,6 +465,9 @@ h1,h2,h3 { font-family:var(--font-manrope),Arial,sans-serif; letter-spacing:-.03
 .submission-detail-item dt { color:var(--muted); font-size:11px; font-weight:750; letter-spacing:.04em; text-transform:uppercase; }
 .submission-detail-item dd { margin:5px 0 0; color:var(--text); font-size:14px; overflow-wrap:anywhere; }
 .submission-detail-item a { color:var(--blue); text-decoration:underline; text-underline-offset:3px; }
+.submission-phone-value { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+.submission-phone-value .button-whatsapp { min-height:32px; border:1px solid #1f9d57; border-radius:8px; background:#eaf8f0; color:#13743e; padding:0 11px; font-size:11px; text-decoration:none; }
+.submission-phone-value .button-whatsapp:hover { background:#d7f2e2; }
 .submission-detail-message { border:1px solid var(--line); border-radius:12px; background:var(--surface); padding:17px; }
 .submission-detail-message>span,.submission-detail-notification>span { display:block; color:var(--muted); font-size:11px; font-weight:750; letter-spacing:.04em; text-transform:uppercase; }
 .submission-detail-message p { white-space:pre-wrap; margin:8px 0 0; color:var(--text); line-height:1.6; }
@@ -465,3 +487,4 @@ h1,h2,h3 { font-family:var(--font-manrope),Arial,sans-serif; letter-spacing:-.03
 @media (max-width:680px) { .utility-inner{min-height:32px}.utility-inner>span{font-size:9px;text-transform:uppercase;letter-spacing:.08em}.utility-inner>div{display:none}.membership-header-cta{display:none}.institution-strip-inner,.library-summary-grid,.institution-facts{grid-template-columns:1fr}.institution-strip-inner>div,.institution-strip-inner>div:first-child,.library-summary-grid>div,.library-summary-grid>div:first-child{min-height:82px;grid-column:auto;border-right:0;border-bottom:1px solid var(--line);padding:18px 0}.institution-strip-inner>div:last-child,.library-summary-grid>div:last-child{grid-column:auto;border-top:0;border-bottom:0}.institution-facts>div,.institution-facts>div:nth-child(2){border-right:0;border-bottom:1px solid var(--line)}.institution-facts>div:last-child{border-bottom:0}.portal-directory>a{padding:16px 18px}.directory-heading{padding:22px 20px}.leadership-card{grid-template-columns:1fr}.commerce-system-inner{grid-template-columns:1fr}.commerce-system-inner .button{grid-column:auto;width:100%}.related-links>a{grid-template-columns:1fr;gap:7px}.related-links small{grid-column:auto}.agenda-contact-inner .button{width:100%} }
 @media (prefers-reduced-motion:reduce) { html{scroll-behavior:auto}*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important} }
 @media (max-width:680px) { .submission-detail-grid { grid-template-columns:1fr; } }
+@media (max-width:680px) { .status-lookup-card { padding:22px 20px; } .status-lookup-heading { gap:14px; } .status-lookup-icon { width:42px; height:42px; } .status-lookup-form { flex-direction:column; } .status-lookup-form .button { width:100%; } .status-lookup-result-top .status-badge { display:none; } }

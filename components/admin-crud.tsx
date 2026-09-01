@@ -1,7 +1,7 @@
 "use client";
 
 import { Dialog } from "@base-ui/react/dialog";
-import { Archive, Database, Eye, FileUp, Loader2, Pencil, Plus, X } from "lucide-react";
+import { Archive, Database, Eye, FileUp, Loader2, MessageCircle, Pencil, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
@@ -96,7 +96,17 @@ function SubmissionDetails({ record }: { record: AdminRecord }) {
   const channelLabels: Record<string, string> = { email: "E-mail", phone: "Ligação", whatsapp: "WhatsApp" };
   const statusLabels: Record<string, string> = { new: "Novo", handling: "Em atendimento", waiting: "Aguardando retorno", completed: "Concluído" };
   const emailStatusLabels: Record<string, string> = { pending: "Pendente", sent: "Enviado", failed: "Falhou" };
-  return <div className="submission-details"><dl className="submission-detail-grid"><Detail label="Protocolo" value={value("protocol")} /><Detail label="Tipo" value={kindLabels[value("kind")] ?? value("kind")} /><Detail label="Situação" value={statusLabels[value("status")] ?? value("status")} /><Detail label="Recebido em" value={date} /><Detail label="Responsável" value={value("requester_name")} /><Detail label="Canal preferido" value={channelLabels[value("preferred_channel")] ?? value("preferred_channel")} /><Detail label="E-mail" value={value("email")} href={value("email") ? `mailto:${value("email")}` : undefined} /><Detail label="Telefone" value={value("phone")} href={value("phone") ? `tel:${value("phone")}` : undefined} />{value("subject") && <Detail label="Assunto" value={value("subject")} />}{value("company_name") && <Detail label="Empresa" value={value("company_name")} />}{value("company_cnpj") && <Detail label="CNPJ" value={value("company_cnpj")} />}{value("municipality") && <Detail label="Município" value={value("municipality")} />}{value("activity") && <Detail label="Atividade" value={value("activity")} />}</dl><div className="submission-detail-message"><span>Mensagem</span><p>{value("message") || "Nenhuma mensagem informada."}</p></div><div className="submission-detail-notification"><span>Notificação por e-mail</span><strong>{emailStatusLabels[value("email_notification_status")] ?? "Não configurada"}</strong>{value("email_notification_error") && <small>{value("email_notification_error")}</small>}</div></div>;
+  const phone = value("phone");
+  const whatsappHref = buildWhatsappHref(phone, value("requester_name"), value("protocol"));
+  return <div className="submission-details"><dl className="submission-detail-grid"><Detail label="Protocolo" value={value("protocol")} /><Detail label="Tipo" value={kindLabels[value("kind")] ?? value("kind")} /><Detail label="Situação" value={statusLabels[value("status")] ?? value("status")} /><Detail label="Recebido em" value={date} /><Detail label="Responsável" value={value("requester_name")} /><Detail label="Canal preferido" value={channelLabels[value("preferred_channel")] ?? value("preferred_channel")} /><Detail label="E-mail" value={value("email")} href={value("email") ? `mailto:${value("email")}` : undefined} /><div className="submission-detail-item"><dt>Telefone</dt><dd className="submission-phone-value"><a href={phone ? `tel:${phone}` : undefined}>{phone || "Não informado"}</a>{whatsappHref && <a className="button button-whatsapp" href={whatsappHref} target="_blank" rel="noreferrer" aria-label={`Abrir conversa no WhatsApp com ${value("requester_name")}`}><MessageCircle size={15} /> WhatsApp</a>}</dd></div>{value("subject") && <Detail label="Assunto" value={value("subject")} />}{value("company_name") && <Detail label="Empresa" value={value("company_name")} />}{value("company_cnpj") && <Detail label="CNPJ" value={value("company_cnpj")} />}{value("municipality") && <Detail label="Município" value={value("municipality")} />}{value("activity") && <Detail label="Atividade" value={value("activity")} />}</dl><div className="submission-detail-message"><span>Mensagem</span><p>{value("message") || "Nenhuma mensagem informada."}</p></div><div className="submission-detail-notification"><span>Notificação por e-mail</span><strong>{emailStatusLabels[value("email_notification_status")] ?? "Não configurada"}</strong>{value("email_notification_error") && <small>{value("email_notification_error")}</small>}</div></div>;
+}
+
+function buildWhatsappHref(phone: string, name: string, protocol: string) {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 10) return "";
+  const internationalPhone = digits.startsWith("55") ? digits : `55${digits}`;
+  const message = `Olá, ${name || "tudo bem"}! Aqui é do Sindicomar. Estamos entrando em contato sobre a sua solicitação ${protocol || "enviada pelo site"}.`;
+  return `https://wa.me/${internationalPhone}?text=${encodeURIComponent(message)}`;
 }
 
 function Detail({ label, value, href }: { label: string; value: string; href?: string }) {
