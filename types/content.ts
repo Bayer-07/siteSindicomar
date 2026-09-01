@@ -1,3 +1,5 @@
+import type { JSONContent } from "@tiptap/core";
+
 export type DocumentStatus = "current" | "extended" | "negotiating" | "superseded" | "expired";
 export type DocumentType = "cct" | "act" | "amendment" | "minutes" | "circular" | "notice";
 export type AgendaStatus = "confirmed" | "pending" | "cancelled" | "informational";
@@ -47,6 +49,7 @@ export interface Service {
   exclusive: boolean;
   partner?: string;
   validity?: string;
+  content?: JSONContent;
 }
 
 export interface Post {
@@ -59,4 +62,5 @@ export interface Post {
   author: string;
   body: string[];
   coverImageUrl?: string;
+  content?: JSONContent;
 }

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { JSONContent } from "@tiptap/core";
 import { agendaItems as fallbackAgendaItems, collectiveDocuments as fallbackDocuments, posts as fallbackPosts, services as fallbackServices } from "@/data/site-content";
 import type { AgendaItem, CollectiveDocument, DocumentStatus, Post, Service } from "@/types/content";
 
@@ -61,6 +62,12 @@ function richTextParagraphs(value: unknown): string[] {
   return root.content.flatMap(extract).filter(Boolean);
 }
 
+function richTextContent(value: unknown): JSONContent | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const content = value as { type?: unknown };
+  return content.type === "doc" ? value as JSONContent : undefined;
+}
+
 function mapDocument(row: DatabaseRow): CollectiveDocument {
   const client = publicClient();
   const storagePath = stringValue(row, "storage_path");
@@ -112,6 +119,7 @@ function mapService(row: DatabaseRow): Service {
     exclusive: row.is_exclusive === true,
     partner: stringValue(row, "partner_name") || undefined,
     validity: stringValue(row, "valid_until") || undefined,
+    content: richTextContent(row.content),
   };
 }
 
@@ -130,6 +138,7 @@ function mapPost(row: DatabaseRow): Post {
     author: stringValue(row, "author_name"),
     body: body.length ? body : [stringValue(row, "excerpt")],
     coverImageUrl,
+    content: richTextContent(row.content),
   };
 }
 
