@@ -2,7 +2,8 @@ import { ArrowRight, BriefcaseBusiness, Building2, CalendarDays, FileCheck2, Han
 import { PublicLink as Link } from "@/components/public-link";
 import { AgendaStatusBadge, DocumentStatusBadge } from "@/components/status-badge";
 import { StructuredData } from "@/components/structured-data";
-import { agendaItems, collectiveDocuments, documentTypeLabels, posts, services } from "@/data/site-content";
+import { documentTypeLabels } from "@/data/site-content";
+import { getPublicCollections } from "@/lib/content";
 
 const shortcuts = [
   { href: "/convencoes", icon: FileCheck2, number: "01", title: "Convenções coletivas", description: "Encontre o instrumento por município, categoria, tipo e situação." },
@@ -11,7 +12,10 @@ const shortcuts = [
   { href: "/contato", icon: MessageCircle, number: "04", title: "Atendimento", description: "Fale com a entidade pelo canal mais conveniente para sua empresa." },
 ];
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const { agendaItems, collectiveDocuments, posts, services } = await getPublicCollections();
   const featuredDocuments = collectiveDocuments.slice(0, 2);
   return (
     <main id="conteudo">

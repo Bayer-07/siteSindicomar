@@ -1,8 +1,11 @@
 import type { MetadataRoute } from "next";
-import { collectiveDocuments, posts, services } from "@/data/site-content";
+import { getPublicCollections } from "@/lib/content";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export const dynamic = "force-dynamic";
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const origin = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.sindicomar.com.br";
+  const { collectiveDocuments, posts, services } = await getPublicCollections();
   const routes = ["", "/o-sindicomar", "/representatividade", "/convencoes", "/agenda", "/servicos", "/associe-se", "/noticias", "/contato", "/privacidade", "/cookies", "/termos", "/acessibilidade"];
   return [
     ...routes.map((route) => ({ url: `${origin}${route}`, lastModified: new Date(), changeFrequency: route === "" ? "weekly" as const : "monthly" as const, priority: route === "" ? 1 : 0.7 })),

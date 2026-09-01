@@ -5,7 +5,7 @@ function icsDate(value: string) { return new Date(value).toISOString().replaceAl
 function escapeIcs(value: string) { return value.replaceAll("\\", "\\\\").replaceAll(";", "\\;").replaceAll(",", "\\,").replaceAll("\n", "\\n"); }
 
 export async function GET(_: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const item = getAgendaItemBySlug((await params).slug);
+  const item = await getAgendaItemBySlug((await params).slug);
   if (!item) return NextResponse.json({ message: "Evento não encontrado" }, { status: 404 });
   const start = icsDate(item.date);
   const end = icsDate(item.endDate ?? new Date(new Date(item.date).getTime() + 60 * 60 * 1000).toISOString());
