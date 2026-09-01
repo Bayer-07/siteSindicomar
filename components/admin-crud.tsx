@@ -5,7 +5,7 @@ import { Dialog } from "@base-ui/react/dialog";
 import type { JSONContent } from "@tiptap/core";
 import { Archive, Database, Eye, FileImage, FileUp, Loader2, MessageCircle, Pencil, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { TiptapEditor } from "@/components/tiptap-editor";
 import { slugify } from "@/lib/slug";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
@@ -41,7 +41,10 @@ const configs: Record<string, ModuleConfig> = {
   solicitacoes: { titleKey: "protocol", fields: [{ key: "status", label: "Situação", type: "select", options: [{ value: "new", label: "Novo" }, { value: "handling", label: "Em atendimento" }, { value: "waiting", label: "Aguardando retorno" }, { value: "completed", label: "Concluído" }] }] },
 };
 
-export function AdminCrud({ section, table, initialRecords, createEnabled }: { section: string; table: string; initialRecords: AdminRecord[]; createEnabled: boolean }) {
+export type AdminCrudHandle = { startCreate: () => void };
+type AdminCrudProps = { section: string; table: string; initialRecords: AdminRecord[]; createEnabled: boolean; showCreateButton?: boolean };
+
+export const AdminCrud = forwardRef<AdminCrudHandle, AdminCrudProps>(function AdminCrud({ section, table, initialRecords, createEnabled, showCreateButton = true }: AdminCrudProps, ref) {
   const config = configs[section];
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -78,9 +81,10 @@ export function AdminCrud({ section, table, initialRecords, createEnabled }: { s
     if (pdfPreview) return () => URL.revokeObjectURL(pdfPreview);
   }, [pdfPreview]);
 
-  function startCreate() { setRecord(defaultRecord(section)); setPdf(null); setAsset(null); setRemoveAsset(false); setSlugEdited(false); setError(""); setOpen(true); }
+  const startCreate = useCallback(() => { setRecord(defaultRecord(section)); setPdf(null); setAsset(null); setRemoveAsset(false); setSlugEdited(false); setError(""); setOpen(true); }, [section]);
   function startEdit(item: AdminRecord) { setRecord(normalizeForForm(item, fields)); setPdf(null); setAsset(null); setRemoveAsset(false); setSlugEdited(Boolean(item.slug)); setError(""); setOpen(true); }
   function startView(item: AdminRecord) { setDetailRecord(item); }
+  useImperativeHandle(ref, () => ({ startCreate }), [startCreate]);
   function updateValue(key: string, value: unknown) {
     if (key === "slug") setSlugEdited(true);
     setRecord((current) => {
@@ -145,11 +149,11 @@ export function AdminCrud({ section, table, initialRecords, createEnabled }: { s
     return <label className={isFullWidth ? "field field-full" : "field"} key={field.key}><span>{field.label}</span>{field.help && <small className="field-help">{field.help}</small>}{field.type === "textarea" || field.type === "json" ? <textarea rows={field.type === "json" ? 7 : 4} required={field.required} value={inputValue(fieldValue)} onChange={(event) => updateValue(field.key, event.target.value)} placeholder={field.placeholder} /> : field.type === "select" ? <select required={field.required} value={inputValue(fieldValue)} onChange={(event) => updateValue(field.key, event.target.value)}>{field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : <input type={field.type ?? "text"} required={field.required} value={inputValue(fieldValue)} onChange={(event) => updateValue(field.key, event.target.value)} placeholder={field.placeholder} />}</label>;
   };
   const entityLabel = entityLabels[section] ?? "registro";
-  return <><div className="crud-actions">{createEnabled && <button className="button button-primary" type="button" onClick={startCreate}><Plus size={17} /> Novo {entityLabel}</button>}</div>{initialRecords.length ? <div className="admin-record-list">{initialRecords.map((item, index) => <article key={String(item.id ?? index)}><div><strong>{String(item[config.titleKey] ?? `Registro ${index + 1}`)}</strong><p>{String(item.summary ?? item.excerpt ?? item.requester_name ?? item.status ?? "Sem descrição")}</p></div><div>{section === "solicitacoes" && <button className="admin-view-button" type="button" onClick={() => startView(item)}><Eye size={15} /> Ver detalhes</button>}<span className="status-badge status-informational">{String(item.status ?? "cadastrado")}</span><button type="button" onClick={() => startEdit(item)}><Pencil size={15} /> Editar</button>{config.archive && item.status !== "archived" && <button type="button" onClick={() => void archive(item)} disabled={saving}><Archive size={15} /> Arquivar</button>}</div></article>)}</div> : <div className="empty-admin"><Database size={28} /><strong>Nenhum registro neste módulo</strong><p>Use “Novo {entityLabel}” para iniciar o conteúdo.</p></div>}
+  return <>{createEnabled && showCreateButton && <div className="crud-actions"><button className="button button-primary" type="button" onClick={startCreate}><Plus size={17} /> Novo {entityLabel}</button></div>}{initialRecords.length ? <div className="admin-record-list">{initialRecords.map((item, index) => <article key={String(item.id ?? index)}><div><strong>{String(item[config.titleKey] ?? `Registro ${index + 1}`)}</strong><p>{String(item.summary ?? item.excerpt ?? item.requester_name ?? item.status ?? "Sem descrição")}</p></div><div>{section === "solicitacoes" && <button className="admin-view-button" type="button" onClick={() => startView(item)}><Eye size={15} /> Ver detalhes</button>}<span className="status-badge status-informational">{String(item.status ?? "cadastrado")}</span><button type="button" onClick={() => startEdit(item)}><Pencil size={15} /> Editar</button>{config.archive && item.status !== "archived" && <button type="button" onClick={() => void archive(item)} disabled={saving}><Archive size={15} /> Arquivar</button>}</div></article>)}</div> : <div className="empty-admin"><Database size={28} /><strong>Nenhum registro neste módulo</strong><p>Use “Novo {entityLabel}” para iniciar o conteúdo.</p></div>}
     <Dialog.Root open={open} onOpenChange={setOpen}><Dialog.Portal><Dialog.Backdrop className="dialog-backdrop" /><Dialog.Viewport className="crud-dialog-viewport"><Dialog.Popup className="crud-dialog"><div className="dialog-heading"><div><Dialog.Title>{isEditing ? `Editar ${entityLabel}` : `Novo ${entityLabel}`}</Dialog.Title><Dialog.Description>Preencha os campos e salve como rascunho. Publique somente depois da revisão.</Dialog.Description></div><Dialog.Close className="icon-button" aria-label="Fechar"><X size={20} /></Dialog.Close></div><form onSubmit={save} className="crud-form">{visibleFields.map(renderField)}{upload && <AssetUploadField upload={upload} existingPath={savedAssetPath} existingPreview={savedAssetPreview} selectedPreview={assetPreview} removeExisting={removeAsset} onSelect={(file) => { setAsset(file); if (file) setRemoveAsset(false); }} onRemove={() => { setAsset(null); setRemoveAsset(true); }} onUndoRemove={() => setRemoveAsset(false)} />}{section === "documentos" && <DocumentUploadField allowUpload={!isEditing} existingPath={savedPdfPath} existingUrl={savedPdfUrl} selectedFile={pdf} selectedUrl={pdfPreview} onSelect={setPdf} />}{error && <p className="form-error field-full">{error}</p>}<div className="form-actions field-full"><Dialog.Close className="button button-secondary">Cancelar</Dialog.Close><button className="button button-primary" type="submit" disabled={saving}>{saving ? <><Loader2 className="spin" size={17} /> Salvando…</> : "Salvar registro"}</button></div></form></Dialog.Popup></Dialog.Viewport></Dialog.Portal></Dialog.Root>
     {section === "solicitacoes" && <Dialog.Root open={Boolean(detailRecord)} onOpenChange={(nextOpen) => { if (!nextOpen) setDetailRecord(null); }}><Dialog.Portal><Dialog.Backdrop className="dialog-backdrop" /><Dialog.Viewport className="crud-dialog-viewport"><Dialog.Popup className="crud-dialog submission-detail-dialog"><div className="dialog-heading"><div><Dialog.Title>Detalhes da solicitação</Dialog.Title><Dialog.Description>Protocolo e dados enviados pelo formulário.</Dialog.Description></div><Dialog.Close className="icon-button" aria-label="Fechar"><X size={20} /></Dialog.Close></div>{detailRecord && <SubmissionDetails record={detailRecord} />}<div className="form-actions"><Dialog.Close className="button button-secondary">Fechar</Dialog.Close></div></Dialog.Popup></Dialog.Viewport></Dialog.Portal></Dialog.Root>}
   </>;
-}
+});
 
 function AssetUploadField({ upload, existingPath, existingPreview, selectedPreview, removeExisting, onSelect, onRemove, onUndoRemove }: AssetUploadFieldProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);

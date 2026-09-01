@@ -486,6 +486,11 @@ h1,h2,h3 { font-family:var(--font-manrope),Arial,sans-serif; letter-spacing:-.03
 .admin-module-page { min-height:100vh; background:#f5f7fa; padding:50px 25px; }
 .admin-module-shell { width:min(1100px,100%); margin:auto; }
 .admin-module-shell>header { display:flex; align-items:end; justify-content:space-between; gap:30px; margin-bottom:28px; }
+.admin-module-header-main { width:100%; }
+.admin-module-title-row { display:flex; align-items:center; justify-content:space-between; gap:24px; }
+.admin-module-shell>header .admin-module-title-row h1 { margin:0; }
+.admin-module-actions { display:flex; align-items:center; gap:14px; flex-shrink:0; }
+.admin-record-count { color:var(--muted); font-size:13px; font-weight:700; white-space:nowrap; }
 .admin-module-shell>header h1 { margin-bottom:8px; font-size:42px; }
 .admin-module-shell>header p { margin:0; color:var(--muted); }
 .admin-record-list { display:grid; }
@@ -544,3 +549,4 @@ h1,h2,h3 { font-family:var(--font-manrope),Arial,sans-serif; letter-spacing:-.03
 @media (max-width:680px) { .submission-detail-grid { grid-template-columns:1fr; } }
 @media (max-width:680px) { .status-lookup-card { padding:22px 20px; } .status-lookup-heading { gap:14px; } .status-lookup-icon { width:42px; height:42px; } .status-lookup-form { flex-direction:column; } .status-lookup-form .button { width:100%; } .status-lookup-result-top .status-badge { display:none; } }
 @media (max-width:680px) { .status-lookup-card-compact .status-lookup-form { display:flex; flex-direction:column; } }
+@media (max-width:680px) { .admin-module-title-row { align-items:flex-start; flex-direction:column; gap:14px; } .admin-module-actions { align-items:flex-start; flex-wrap:wrap; } }
