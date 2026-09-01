@@ -18,15 +18,15 @@ function publicClient() {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
-async function publishedRows(table: string): Promise<DatabaseRow[]> {
+async function publishedRows(table: string): Promise<DatabaseRow[] | null> {
   const client = publicClient();
-  if (!client) return [];
+  if (!client) return null;
   try {
     const { data, error } = await client.from(table).select("*").eq("status", "published");
-    if (error || !data) return [];
+    if (error) return null;
     return data as DatabaseRow[];
   } catch {
-    return [];
+    return null;
   }
 }
 
@@ -128,8 +128,8 @@ function mapPost(row: DatabaseRow): Post {
   };
 }
 
-function databaseOrFallback<T>(databaseItems: T[], fallbackItems: T[]) {
-  return databaseItems.length ? databaseItems : fallbackItems;
+function databaseOrFallback<T>(databaseItems: T[] | null, fallbackItems: T[]) {
+  return databaseItems === null ? fallbackItems : databaseItems;
 }
 
 export async function getPublicCollections(): Promise<PublicCollections> {
@@ -140,10 +140,10 @@ export async function getPublicCollections(): Promise<PublicCollections> {
     publishedRows("posts"),
   ]);
   return {
-    collectiveDocuments: databaseOrFallback(documentRows.map(mapDocument).filter((item) => item.slug), fallbackDocuments),
-    agendaItems: databaseOrFallback(agendaRows.map(mapAgendaItem).filter((item) => item.slug), fallbackAgendaItems),
-    services: databaseOrFallback(serviceRows.map(mapService).filter((item) => item.slug), fallbackServices),
-    posts: databaseOrFallback(postRows.map(mapPost).filter((item) => item.slug), fallbackPosts),
+    collectiveDocuments: databaseOrFallback(documentRows?.map(mapDocument).filter((item) => item.slug) ?? null, fallbackDocuments),
+    agendaItems: databaseOrFallback(agendaRows?.map(mapAgendaItem).filter((item) => item.slug) ?? null, fallbackAgendaItems),
+    services: databaseOrFallback(serviceRows?.map(mapService).filter((item) => item.slug) ?? null, fallbackServices),
+    posts: databaseOrFallback(postRows?.map(mapPost).filter((item) => item.slug) ?? null, fallbackPosts),
   };
 }
 
