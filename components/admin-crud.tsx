@@ -5,7 +5,7 @@ import { Dialog } from "@base-ui/react/dialog";
 import type { JSONContent } from "@tiptap/core";
 import { Archive, Database, Eye, FileImage, FileUp, Loader2, MessageCircle, Pencil, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { TiptapEditor } from "@/components/tiptap-editor";
 import { slugify } from "@/lib/slug";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
@@ -14,6 +14,7 @@ type AdminRecord = Record<string, unknown>;
 type FieldDefinition = { key: string; label: string; type?: "text" | "textarea" | "number" | "date" | "datetime-local" | "select" | "json" | "richtext"; required?: boolean; help?: string; placeholder?: string; options?: Array<{ value: string; label: string }> };
 type UploadDefinition = { key: string; label: string; helper: string; bucket: "public-images" | "public-documents"; accept: string; maxBytes: number };
 type ModuleConfig = { fields: FieldDefinition[]; titleKey: string; archive?: boolean; upload?: UploadDefinition };
+type AssetUploadFieldProps = { upload: UploadDefinition; existingPath: string; existingPreview: string; selectedPreview: string; removeExisting: boolean; onSelect: (file: File | null) => void; onRemove: () => void; onUndoRemove: () => void };
 
 const publicationOptions = [{ value: "draft", label: "Rascunho" }, { value: "published", label: "Publicado" }, { value: "archived", label: "Arquivado" }];
 const categoryOptions = [{ value: "labor", label: "Relações do trabalho" }, { value: "training", label: "Capacitação" }, { value: "health", label: "Saúde" }, { value: "technology", label: "Tecnologia" }, { value: "finance", label: "Finanças" }, { value: "commerce", label: "Comércio" }];
@@ -49,6 +50,7 @@ export function AdminCrud({ section, table, initialRecords, createEnabled }: { s
   const [error, setError] = useState("");
   const [pdf, setPdf] = useState<File | null>(null);
   const [asset, setAsset] = useState<File | null>(null);
+  const [removeAsset, setRemoveAsset] = useState(false);
   const [slugEdited, setSlugEdited] = useState(false);
   const [detailRecord, setDetailRecord] = useState<AdminRecord | null>(null);
   const isEditing = Boolean(record.id);
@@ -56,13 +58,18 @@ export function AdminCrud({ section, table, initialRecords, createEnabled }: { s
   const visibleFields = useMemo(() => fields.filter((field) => field.key !== "slug"), [fields]);
   const upload = config?.upload;
   const assetPreview = useMemo(() => asset ? URL.createObjectURL(asset) : "", [asset]);
+  const savedAssetPath = upload ? String(record[upload.key] ?? "") : "";
+  const savedAssetPreview = useMemo(() => {
+    if (!upload || !savedAssetPath || removeAsset || asset) return "";
+    try { return createSupabaseBrowserClient().storage.from(upload.bucket).getPublicUrl(savedAssetPath).data.publicUrl; } catch { return ""; }
+  }, [asset, removeAsset, savedAssetPath, upload]);
 
   useEffect(() => {
     if (assetPreview) return () => URL.revokeObjectURL(assetPreview);
   }, [assetPreview]);
 
-  function startCreate() { setRecord(defaultRecord(section)); setPdf(null); setAsset(null); setSlugEdited(false); setError(""); setOpen(true); }
-  function startEdit(item: AdminRecord) { setRecord(normalizeForForm(item, fields)); setPdf(null); setAsset(null); setSlugEdited(Boolean(item.slug)); setError(""); setOpen(true); }
+  function startCreate() { setRecord(defaultRecord(section)); setPdf(null); setAsset(null); setRemoveAsset(false); setSlugEdited(false); setError(""); setOpen(true); }
+  function startEdit(item: AdminRecord) { setRecord(normalizeForForm(item, fields)); setPdf(null); setAsset(null); setRemoveAsset(false); setSlugEdited(Boolean(item.slug)); setError(""); setOpen(true); }
   function startView(item: AdminRecord) { setDetailRecord(item); }
   function updateValue(key: string, value: unknown) {
     if (key === "slug") setSlugEdited(true);
@@ -97,6 +104,8 @@ export function AdminCrud({ section, table, initialRecords, createEnabled }: { s
         const { error: uploadError } = await supabase.storage.from(upload.bucket).upload(path, asset, { contentType: asset.type, upsert: false });
         if (uploadError) throw uploadError;
         payload[upload.key] = path;
+      } else if (upload && removeAsset) {
+        payload[upload.key] = null;
       }
       const mutation = isEditing ? supabase.from(table).update(payload).eq("id", record.id).select().single() : supabase.from(table).insert(payload).select().single();
       const { data, error: mutationError } = await mutation;
@@ -127,9 +136,21 @@ export function AdminCrud({ section, table, initialRecords, createEnabled }: { s
   };
   const entityLabel = entityLabels[section] ?? "registro";
   return <><div className="crud-actions">{createEnabled && <button className="button button-primary" type="button" onClick={startCreate}><Plus size={17} /> Novo {entityLabel}</button>}</div>{initialRecords.length ? <div className="admin-record-list">{initialRecords.map((item, index) => <article key={String(item.id ?? index)}><div><strong>{String(item[config.titleKey] ?? `Registro ${index + 1}`)}</strong><p>{String(item.summary ?? item.excerpt ?? item.requester_name ?? item.status ?? "Sem descrição")}</p></div><div>{section === "solicitacoes" && <button className="admin-view-button" type="button" onClick={() => startView(item)}><Eye size={15} /> Ver detalhes</button>}<span className="status-badge status-informational">{String(item.status ?? "cadastrado")}</span><button type="button" onClick={() => startEdit(item)}><Pencil size={15} /> Editar</button>{config.archive && item.status !== "archived" && <button type="button" onClick={() => void archive(item)} disabled={saving}><Archive size={15} /> Arquivar</button>}</div></article>)}</div> : <div className="empty-admin"><Database size={28} /><strong>Nenhum registro neste módulo</strong><p>Use “Novo {entityLabel}” para iniciar o conteúdo.</p></div>}
-    <Dialog.Root open={open} onOpenChange={setOpen}><Dialog.Portal><Dialog.Backdrop className="dialog-backdrop" /><Dialog.Viewport className="crud-dialog-viewport"><Dialog.Popup className="crud-dialog"><div className="dialog-heading"><div><Dialog.Title>{isEditing ? `Editar ${entityLabel}` : `Novo ${entityLabel}`}</Dialog.Title><Dialog.Description>Preencha os campos e salve como rascunho. Publique somente depois da revisão.</Dialog.Description></div><Dialog.Close className="icon-button" aria-label="Fechar"><X size={20} /></Dialog.Close></div><form onSubmit={save} className="crud-form">{visibleFields.map(renderField)}{upload && <label className="upload-field field-full"><FileImage /><span><strong>{upload.label}</strong><small>{upload.helper}</small>{Boolean(record[upload.key]) && <small>Já existe um arquivo salvo. Selecione outro somente se quiser substituí-lo.</small>}</span>{assetPreview && <img className="upload-preview" src={assetPreview} alt="Pré-visualização do arquivo selecionado" /> }<input type="file" accept={upload.accept} onChange={(event) => setAsset(event.target.files?.[0] ?? null)} /></label>}{section === "documentos" && !isEditing && <label className="upload-field field-full"><FileUp /><span><strong>PDF oficial</strong><small>application/pdf, até 20 MB; um novo arquivo sempre cria um caminho imutável.</small></span><input type="file" accept="application/pdf" onChange={(event) => setPdf(event.target.files?.[0] ?? null)} /></label>}{error && <p className="form-error field-full">{error}</p>}<div className="form-actions field-full"><Dialog.Close className="button button-secondary">Cancelar</Dialog.Close><button className="button button-primary" type="submit" disabled={saving}>{saving ? <><Loader2 className="spin" size={17} /> Salvando…</> : "Salvar registro"}</button></div></form></Dialog.Popup></Dialog.Viewport></Dialog.Portal></Dialog.Root>
+    <Dialog.Root open={open} onOpenChange={setOpen}><Dialog.Portal><Dialog.Backdrop className="dialog-backdrop" /><Dialog.Viewport className="crud-dialog-viewport"><Dialog.Popup className="crud-dialog"><div className="dialog-heading"><div><Dialog.Title>{isEditing ? `Editar ${entityLabel}` : `Novo ${entityLabel}`}</Dialog.Title><Dialog.Description>Preencha os campos e salve como rascunho. Publique somente depois da revisão.</Dialog.Description></div><Dialog.Close className="icon-button" aria-label="Fechar"><X size={20} /></Dialog.Close></div><form onSubmit={save} className="crud-form">{visibleFields.map(renderField)}{upload && <AssetUploadField upload={upload} existingPath={savedAssetPath} existingPreview={savedAssetPreview} selectedPreview={assetPreview} removeExisting={removeAsset} onSelect={(file) => { setAsset(file); if (file) setRemoveAsset(false); }} onRemove={() => { setAsset(null); setRemoveAsset(true); }} onUndoRemove={() => setRemoveAsset(false)} />}{section === "documentos" && !isEditing && <label className="upload-field field-full"><FileUp /><span><strong>PDF oficial</strong><small>application/pdf, até 20 MB; um novo arquivo sempre cria um caminho imutável.</small></span><input type="file" accept="application/pdf" onChange={(event) => setPdf(event.target.files?.[0] ?? null)} /></label>}{error && <p className="form-error field-full">{error}</p>}<div className="form-actions field-full"><Dialog.Close className="button button-secondary">Cancelar</Dialog.Close><button className="button button-primary" type="submit" disabled={saving}>{saving ? <><Loader2 className="spin" size={17} /> Salvando…</> : "Salvar registro"}</button></div></form></Dialog.Popup></Dialog.Viewport></Dialog.Portal></Dialog.Root>
     {section === "solicitacoes" && <Dialog.Root open={Boolean(detailRecord)} onOpenChange={(nextOpen) => { if (!nextOpen) setDetailRecord(null); }}><Dialog.Portal><Dialog.Backdrop className="dialog-backdrop" /><Dialog.Viewport className="crud-dialog-viewport"><Dialog.Popup className="crud-dialog submission-detail-dialog"><div className="dialog-heading"><div><Dialog.Title>Detalhes da solicitação</Dialog.Title><Dialog.Description>Protocolo e dados enviados pelo formulário.</Dialog.Description></div><Dialog.Close className="icon-button" aria-label="Fechar"><X size={20} /></Dialog.Close></div>{detailRecord && <SubmissionDetails record={detailRecord} />}<div className="form-actions"><Dialog.Close className="button button-secondary">Fechar</Dialog.Close></div></Dialog.Popup></Dialog.Viewport></Dialog.Portal></Dialog.Root>}
   </>;
+}
+
+function AssetUploadField({ upload, existingPath, existingPreview, selectedPreview, removeExisting, onSelect, onRemove, onUndoRemove }: AssetUploadFieldProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasExistingAsset = Boolean(existingPath);
+
+  function clearSelection() {
+    onSelect(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  return <div className="upload-field field-full"><FileImage aria-hidden="true" /><div className="upload-field-content"><strong>{upload.label}</strong><small>{upload.helper}</small>{selectedPreview ? <div className="upload-preview-card"><img className="upload-preview" src={selectedPreview} alt="Pré-visualização da nova imagem" /><div className="upload-preview-actions"><small>Nova imagem selecionada</small><button className="upload-remove-button" type="button" onClick={clearSelection}>Remover seleção</button></div></div> : hasExistingAsset && !removeExisting ? <div className="upload-preview-card"><>{existingPreview && <img className="upload-preview" src={existingPreview} alt="Imagem atual cadastrada" />}</><div className="upload-preview-actions"><small>{existingPreview ? "Imagem atual" : "Imagem atual cadastrada"}</small><button className="upload-remove-button" type="button" onClick={onRemove}>Remover imagem atual</button></div></div> : removeExisting ? <div className="upload-removed-note"><small>A imagem atual será removida ao salvar.</small><button className="upload-undo-button" type="button" onClick={onUndoRemove}>Desfazer remoção</button></div> : null}<label className="upload-picker"><span>{hasExistingAsset ? "Escolher outra imagem" : "Escolher imagem"}</span><input ref={fileInputRef} type="file" accept={upload.accept} onChange={(event) => onSelect(event.target.files?.[0] ?? null)} /></label></div></div>;
 }
 
 function SubmissionDetails({ record }: { record: AdminRecord }) {
