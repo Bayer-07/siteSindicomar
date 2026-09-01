@@ -19,6 +19,7 @@ type AssetUploadFieldProps = { upload: UploadDefinition; existingPath: string; e
 const publicationOptions = [{ value: "draft", label: "Rascunho" }, { value: "published", label: "Publicado" }, { value: "archived", label: "Arquivado" }];
 const categoryOptions = [{ value: "labor", label: "Relações do trabalho" }, { value: "training", label: "Capacitação" }, { value: "health", label: "Saúde" }, { value: "technology", label: "Tecnologia" }, { value: "finance", label: "Finanças" }, { value: "commerce", label: "Comércio" }];
 const emptyRichText: JSONContent = { type: "doc", content: [] };
+const publicationTimestampTables = new Set(["alerts", "pages", "collective_documents", "agenda_items", "services", "posts"]);
 const entityLabels: Record<string, string> = { documentos: "documento", agenda: "item da agenda", noticias: "notícia", conteudo: "página", servicos: "serviço", institucional: "registro da diretoria", parceiros: "parceiro", alertas: "alerta", configuracoes: "configuração", solicitacoes: "solicitação" };
 const configs: Record<string, ModuleConfig> = {
   documentos: { titleKey: "title", archive: true, fields: [
@@ -97,7 +98,7 @@ export function AdminCrud({ section, table, initialRecords, createEnabled }: { s
       const supabase = createSupabaseBrowserClient();
       const payload = serializeRecord(record, fields);
       delete payload.id; delete payload.created_at; delete payload.updated_at;
-      if (payload.status === "published" && !payload.published_at) payload.published_at = new Date().toISOString();
+      if (publicationTimestampTables.has(table) && payload.status === "published" && !payload.published_at) payload.published_at = new Date().toISOString();
       if (section === "documentos" && pdf) {
         if (pdf.type !== "application/pdf" || pdf.size > 20 * 1024 * 1024) throw new Error("O arquivo deve ser um PDF de até 20 MB.");
         const safeName = pdf.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]+/g, "-");
