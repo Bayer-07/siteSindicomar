@@ -1,22 +1,26 @@
 import fs from "node:fs";
-import { createClient } from "@supabase/supabase-js";
+import { randomUUID } from "node:crypto";
+import mysql from "mysql2/promise";
 
-const env = Object.fromEntries(
-  fs.readFileSync(new URL("../.env.local", import.meta.url), "utf8")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith("#") && line.includes("="))
-    .map((line) => {
-      const separator = line.indexOf("=");
-      return [line.slice(0, separator), line.slice(separator + 1)];
-    }),
-);
-
-if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error(".env.local precisa conter NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.");
+const env = { ...process.env };
+for (const filename of [".env.development.local", ".env.local"]) {
+  const envFile = new URL(`../${filename}`, import.meta.url);
+  if (fs.existsSync(envFile)) {
+    for (const line of fs.readFileSync(envFile, "utf8").split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+      const separator = trimmed.indexOf("=");
+      const key = trimmed.slice(0, separator);
+      env[key] ??= trimmed.slice(separator + 1).replace(/^['\"]|['\"]$/g, "");
+    }
+  }
 }
 
-const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+if (!env.DATABASE_URL) {
+  throw new Error("DATABASE_URL não configurada.");
+}
+
+const db = await mysql.createConnection({ uri: env.DATABASE_URL, timezone: "Z" });
 const published = { status: "published" };
 const tiptap = (...paragraphs) => ({ type: "doc", content: paragraphs.map((text) => ({ type: "paragraph", content: [{ type: "text", text }] })) });
 
@@ -65,36 +69,58 @@ const settings = [
   { key: "contact_note", value: "Atendimento institucional ao comércio varejista de Marechal Cândido Rondon e microrregião." },
 ];
 
-async function upsert(table, rows, onConflict) {
-  const { error } = await supabase.from(table).upsert(rows, { onConflict });
-  if (error) throw new Error(`${table}: ${error.message}`);
+const dateTimeColumns = new Set(["published_at", "confirmed_at"]);
+const dateColumns = new Set(["valid_from", "valid_until"]);
+
+async function upsert(table, rows) {
+  for (const original of rows) {
+    const row = { id: randomUUID(), ...original };
+    const columns = Object.keys(row);
+    const values = columns.map((column) => serializeValue(column, row[column]));
+    const updates = columns.filter((column) => column !== "id").map((column) => `\`${column}\` = VALUES(\`${column}\`)`).join(", ");
+    await db.execute(`INSERT INTO \`${table}\` (${columns.map((column) => `\`${column}\``).join(", ")}) VALUES (${columns.map(() => "?").join(", ")}) ON DUPLICATE KEY UPDATE ${updates}`, values);
+  }
   console.log(`${table}: ${rows.length} registros sincronizados`);
 }
 
 async function upsertNamed(table, rows, matchKeys) {
   for (const row of rows) {
-    let query = supabase.from(table).select("id").limit(1);
-    for (const key of matchKeys) query = query.eq(key, row[key]);
-    const { data, error } = await query.maybeSingle();
-    if (error) throw new Error(`${table}: ${error.message}`);
-    if (data?.id) {
-      const { error: updateError } = await supabase.from(table).update(row).eq("id", data.id);
-      if (updateError) throw new Error(`${table}: ${updateError.message}`);
-    } else {
-      const { error: insertError } = await supabase.from(table).insert(row);
-      if (insertError) throw new Error(`${table}: ${insertError.message}`);
-    }
+    const where = matchKeys.map((key) => `\`${key}\` = ?`).join(" AND ");
+    const [found] = await db.execute(`SELECT id FROM \`${table}\` WHERE ${where} LIMIT 1`, matchKeys.map((key) => serializeValue(key, row[key])));
+    const id = Array.isArray(found) && found[0]?.id ? found[0].id : randomUUID();
+    const next = { id, ...row };
+    const columns = Object.keys(next);
+    const updates = columns.filter((column) => column !== "id").map((column) => `\`${column}\` = VALUES(\`${column}\`)`).join(", ");
+    await db.execute(`INSERT INTO \`${table}\` (${columns.map((column) => `\`${column}\``).join(", ")}) VALUES (${columns.map(() => "?").join(", ")}) ON DUPLICATE KEY UPDATE ${updates}`, columns.map((column) => serializeValue(column, next[column])));
   }
   console.log(`${table}: ${rows.length} registros sincronizados`);
 }
 
-await upsert("posts", posts, "slug");
-await upsert("services", services, "slug");
-await upsert("collective_documents", documents, "slug");
-await upsert("agenda_items", agenda, "slug");
-await upsert("pages", pages, "slug");
-await upsert("site_settings", settings, "key");
-await upsert("categories", categories, "name");
-await upsert("territories", territories, "municipality,state");
+function serializeValue(column, value) {
+  // site_settings.value is a MySQL JSON column even when the setting is a
+  // plain text value. Encode primitives as valid JSON strings as well.
+  if (column === "value" && value !== undefined && value !== null) return JSON.stringify(value);
+  if (dateTimeColumns.has(column) && value) {
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) return date.toISOString().slice(0, 23).replace("T", " ");
+  }
+  if (dateColumns.has(column) && value) {
+    const date = new Date(`${value}T00:00:00Z`);
+    if (!Number.isNaN(date.getTime())) return date.toISOString().slice(0, 10);
+  }
+  if (value && typeof value === "object") return JSON.stringify(value);
+  if (typeof value === "boolean") return value ? 1 : 0;
+  return value ?? null;
+}
+
+await upsert("posts", posts);
+await upsert("services", services);
+await upsert("collective_documents", documents);
+await upsert("agenda_items", agenda);
+await upsert("pages", pages);
+await upsert("site_settings", settings);
+await upsert("categories", categories);
+await upsert("territories", territories);
 await upsertNamed("directors", directors, ["name", "role"]);
 await upsertNamed("partners", partners, ["name"]);
+await db.end();

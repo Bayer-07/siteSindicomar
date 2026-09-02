@@ -1,9 +1,10 @@
 import { Mail, MapPin, Phone } from "lucide-react";
 import Image from "next/image";
 import { PublicLink as Link } from "@/components/public-link";
-import { navigation, publicContact } from "@/data/site-content";
+import { navigation } from "@/data/site-content";
+import type { PublicSiteSettings } from "@/lib/content";
 
-export function SiteFooter() {
+export function SiteFooter({ contact }: { contact: PublicSiteSettings }) {
   return (
     <footer className="site-footer">
       <div className="shell footer-grid">
@@ -13,7 +14,7 @@ export function SiteFooter() {
         </div>
         <div><h2>Navegação</h2><nav>{navigation.map((item) => <Link key={item.href} href={item.href}>{item.label}</Link>)}</nav></div>
         <div><h2>Institucional</h2><nav><Link href="/associe-se">Associe-se</Link><Link href="/contato">Contato</Link><Link href="/privacidade">Privacidade</Link><Link href="/acessibilidade">Acessibilidade</Link></nav></div>
-        <div><h2>Atendimento</h2><address><a href={`tel:${publicContact.phone.replace(/\D/g, "")}`}><Phone size={17} />{publicContact.phone}</a><a href={`mailto:${publicContact.email}`}><Mail size={17} />{publicContact.email}</a><span><MapPin size={17} />{publicContact.address}</span></address></div>
+        <div><h2>Atendimento</h2><address><a href={`tel:${contact.phone.replace(/\D/g, "")}`}><Phone size={17} />{contact.phone}</a><a href={`mailto:${contact.email}`}><Mail size={17} />{contact.email}</a><span><MapPin size={17} />{contact.address}</span></address></div>
       </div>
       <div className="shell footer-bottom"><span>© {new Date().getFullYear()} Sindicomar. Todos os direitos reservados.</span><div><Link href="/cookies">Cookies</Link><Link href="/termos">Termos de uso</Link></div></div>
     </footer>

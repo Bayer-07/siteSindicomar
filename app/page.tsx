@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const { agendaItems, collectiveDocuments, posts, services, partners } = await getPublicCollections();
-  const featuredDocuments = collectiveDocuments.slice(0, 2);
+  const featuredDocuments = collectiveDocuments.filter((document) => ["current", "extended", "negotiating"].includes(document.status)).slice(0, 2);
   return (
     <main id="conteudo">
       <StructuredData />

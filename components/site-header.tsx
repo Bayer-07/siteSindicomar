@@ -5,11 +5,12 @@ import { Mail, Menu, Phone, Search, X } from "lucide-react";
 import Image from "next/image";
 import { FormEvent, useState } from "react";
 import { PublicLink as Link } from "@/components/public-link";
-import { navigation, publicContact } from "@/data/site-content";
+import { navigation } from "@/data/site-content";
+import type { PublicSiteSettings } from "@/lib/content";
 
 type SearchResult = { type: string; title: string; excerpt: string; href: string };
 
-export function SiteHeader() {
+export function SiteHeader({ contact }: { contact: PublicSiteSettings }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -30,8 +31,8 @@ export function SiteHeader() {
         <div className="shell utility-inner">
           <span>Sindicato Patronal do Comércio Varejista</span>
           <div>
-            <a href={`tel:${publicContact.phone.replace(/\D/g, "")}`}><Phone size={13} />{publicContact.phone}</a>
-            <a href={`mailto:${publicContact.email}`}><Mail size={13} />{publicContact.email}</a>
+            <a href={`tel:${contact.phone.replace(/\D/g, "")}`}><Phone size={13} />{contact.phone}</a>
+            <a href={`mailto:${contact.email}`}><Mail size={13} />{contact.email}</a>
           </div>
         </div>
       </div>

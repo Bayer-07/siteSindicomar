@@ -1,55 +1,42 @@
-import { createClient } from "@supabase/supabase-js";
 import type { JSONContent } from "@tiptap/core";
-import { agendaItems as fallbackAgendaItems, collectiveDocuments as fallbackDocuments, posts as fallbackPosts, services as fallbackServices } from "@/data/site-content";
+import { eq } from "drizzle-orm";
+import { agendaItems as fallbackAgendaItems, collectiveDocuments as fallbackDocuments, posts as fallbackPosts, publicContact, services as fallbackServices } from "@/data/site-content";
+import { getDatabase } from "@/lib/db";
+import { agendaItems, collectiveDocuments, partners, posts, services, siteSettings } from "@/lib/db/schema";
 import type { AgendaItem, CollectiveDocument, DocumentStatus, Partner, Post, Service } from "@/types/content";
 
-type PublicCollections = {
-  collectiveDocuments: CollectiveDocument[];
-  agendaItems: AgendaItem[];
-  services: Service[];
-  posts: Post[];
-  partners: Partner[];
-};
-
+type PublicCollections = { collectiveDocuments: CollectiveDocument[]; agendaItems: AgendaItem[]; services: Service[]; posts: Post[]; partners: Partner[] };
+export type PublicSiteSettings = typeof publicContact;
 type DatabaseRow = Record<string, unknown>;
+type PublishedTable = typeof collectiveDocuments | typeof agendaItems | typeof services | typeof posts | typeof partners;
 
-function publicClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-}
+function fallbackAllowed() { return process.env.NODE_ENV !== "production" || process.env.DEMO_MODE === "true"; }
 
-async function publishedRows(table: string): Promise<DatabaseRow[] | null> {
-  const client = publicClient();
-  if (!client) return null;
+async function publishedRows(table: PublishedTable): Promise<DatabaseRow[] | null> {
+  const db = getDatabase();
+  if (!db) return null;
   try {
-    const { data, error } = await client.from(table).select("*").eq("status", "published");
-    if (error) return null;
-    return data as DatabaseRow[];
+    const typedTable = table as typeof posts;
+    const data = await db.select().from(typedTable).where(eq(typedTable.status, "published"));
+    return data as unknown as DatabaseRow[];
   } catch {
     return null;
   }
 }
 
-function stringValue(row: DatabaseRow, key: string, fallback = "") {
-  const value = row[key];
-  return typeof value === "string" ? value : fallback;
-}
-
-function numberValue(row: DatabaseRow, key: string, fallback = 0) {
-  const value = row[key];
-  return typeof value === "number" ? value : Number(value ?? fallback);
-}
-
-function dateOnlyValue(row: DatabaseRow, key: string, fallback = new Date().toISOString()) {
-  const value = stringValue(row, key);
-  return value ? value.slice(0, 10) : fallback.slice(0, 10);
+function stringValue(row: DatabaseRow, key: string, fallback = "") { const value = row[key]; return typeof value === "string" ? value : fallback; }
+function numberValue(row: DatabaseRow, key: string, fallback = 0) { const value = row[key]; return typeof value === "number" ? value : Number(value ?? fallback); }
+function dateOnlyValue(row: DatabaseRow, key: string, fallback = new Date().toISOString()) { const value = row[key]; const date = value instanceof Date ? value.toISOString() : stringValue(row, key); return date ? date.slice(0, 10) : fallback.slice(0, 10); }
+function assetUrl(value: string) { return value ? `/media/${value.split("/").map(encodeURIComponent).join("/")}` : undefined; }
+function parseJson(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  try { return JSON.parse(value); } catch { return null; }
 }
 
 function richTextParagraphs(value: unknown): string[] {
-  if (!value || typeof value !== "object") return [];
-  const root = value as { content?: unknown };
+  const parsed = parseJson(value);
+  if (!parsed || typeof parsed !== "object") return [];
+  const root = parsed as { content?: unknown };
   if (!Array.isArray(root.content)) return [];
   function extract(node: unknown): string[] {
     if (!node || typeof node !== "object") return [];
@@ -57,188 +44,84 @@ function richTextParagraphs(value: unknown): string[] {
     if (typeof current.text === "string") return [current.text];
     if (!Array.isArray(current.content)) return [];
     const children = current.content.flatMap(extract);
-    if (["paragraph", "heading", "listItem", "blockquote", "codeBlock"].includes(String(current.type))) return [children.join("").trim()];
-    return children;
+    return ["paragraph", "heading", "listItem", "blockquote", "codeBlock"].includes(String(current.type)) ? [children.join("").trim()] : children;
   }
   return root.content.flatMap(extract).filter(Boolean);
 }
 
-function richTextContent(value: unknown): JSONContent | undefined {
-  if (!value || typeof value !== "object") return undefined;
-  const content = value as { type?: unknown };
-  return content.type === "doc" ? value as JSONContent : undefined;
-}
+function richTextContent(value: unknown): JSONContent | undefined { const parsed = parseJson(value); return parsed && typeof parsed === "object" && (parsed as JSONContent).type === "doc" ? parsed as JSONContent : undefined; }
 
 function mapDocument(row: DatabaseRow): CollectiveDocument {
-  const client = publicClient();
-  const storagePath = stringValue(row, "storage_path");
-  const pdfUrl = client && storagePath ? client.storage.from("public-documents").getPublicUrl(storagePath).data.publicUrl : undefined;
-  return {
-    id: stringValue(row, "id"),
-    slug: stringValue(row, "slug"),
-    title: stringValue(row, "title"),
-    summary: stringValue(row, "summary"),
-    municipality: stringValue(row, "municipality"),
-    category: stringValue(row, "category_label"),
-    year: numberValue(row, "year"),
-    type: stringValue(row, "document_type") as CollectiveDocument["type"],
-    status: stringValue(row, "document_status") as DocumentStatus,
-    validFrom: stringValue(row, "valid_from") || undefined,
-    validUntil: stringValue(row, "valid_until") || undefined,
-    baseDate: stringValue(row, "base_date") || undefined,
-    laborUnion: stringValue(row, "labor_union") || undefined,
-    mteRegistration: stringValue(row, "mte_registration") || undefined,
-    lastReviewedAt: dateOnlyValue(row, "last_reviewed_at"),
-    officialSource: stringValue(row, "official_source") || undefined,
-    pdfUrl,
-  };
+  return { id: stringValue(row, "id"), slug: stringValue(row, "slug"), title: stringValue(row, "title"), summary: stringValue(row, "summary"), municipality: stringValue(row, "municipality"), category: stringValue(row, "categoryLabel"), year: numberValue(row, "year"), type: stringValue(row, "documentType") as CollectiveDocument["type"], status: stringValue(row, "documentStatus") as DocumentStatus, validFrom: stringValue(row, "validFrom") || undefined, validUntil: stringValue(row, "validUntil") || undefined, baseDate: stringValue(row, "baseDate") || undefined, laborUnion: stringValue(row, "laborUnion") || undefined, mteRegistration: stringValue(row, "mteRegistration") || undefined, lastReviewedAt: dateOnlyValue(row, "lastReviewedAt"), officialSource: stringValue(row, "officialSource") || undefined, pdfUrl: assetUrl(stringValue(row, "storagePath")) };
 }
 
-function mapAgendaItem(row: DatabaseRow): AgendaItem {
-  return {
-    id: stringValue(row, "id"),
-    slug: stringValue(row, "slug"),
-    title: stringValue(row, "title"),
-    description: stringValue(row, "description"),
-    date: stringValue(row, "starts_at"),
-    endDate: stringValue(row, "ends_at") || undefined,
-    municipality: stringValue(row, "municipality"),
-    type: stringValue(row, "agenda_type") as AgendaItem["type"],
-    status: stringValue(row, "agenda_status") as AgendaItem["status"],
-  };
-}
+function mapAgendaItem(row: DatabaseRow): AgendaItem { return { id: stringValue(row, "id"), slug: stringValue(row, "slug"), title: stringValue(row, "title"), description: stringValue(row, "description"), date: dateValue(row, "startsAt"), endDate: dateValue(row, "endsAt") || undefined, municipality: stringValue(row, "municipality"), type: stringValue(row, "agendaType") as AgendaItem["type"], status: stringValue(row, "agendaStatus") as AgendaItem["status"] }; }
+function dateValue(row: DatabaseRow, key: string) { const value = row[key]; return value instanceof Date ? value.toISOString() : stringValue(row, key); }
 
 function mapService(row: DatabaseRow): Service {
   const paragraphs = richTextParagraphs(row.content);
-  return {
-    slug: stringValue(row, "slug"),
-    title: stringValue(row, "title"),
-    excerpt: stringValue(row, "excerpt"),
-    description: paragraphs.join("\n\n") || stringValue(row, "excerpt"),
-    category: stringValue(row, "category") as Service["category"],
-    eligibility: stringValue(row, "eligibility"),
-    exclusive: row.is_exclusive === true,
-    partner: stringValue(row, "partner_name") || undefined,
-    validity: stringValue(row, "valid_until") || undefined,
-    content: richTextContent(row.content),
-  };
+  return { slug: stringValue(row, "slug"), title: stringValue(row, "title"), excerpt: stringValue(row, "excerpt"), description: paragraphs.join("\n\n") || stringValue(row, "excerpt"), category: stringValue(row, "category") as Service["category"], eligibility: stringValue(row, "eligibility"), exclusive: row.isExclusive === true || row.isExclusive === 1, partner: stringValue(row, "partnerName") || undefined, validity: stringValue(row, "validUntil") || undefined, content: richTextContent(row.content) };
 }
 
 function mapPost(row: DatabaseRow): Post {
-  const client = publicClient();
   const body = richTextParagraphs(row.content);
-  const coverImagePath = stringValue(row, "cover_image_path");
-  const coverImageUrl = client && coverImagePath ? client.storage.from("public-images").getPublicUrl(coverImagePath).data.publicUrl : undefined;
-  return {
-    slug: stringValue(row, "slug"),
-    title: stringValue(row, "title"),
-    excerpt: stringValue(row, "excerpt"),
-    category: stringValue(row, "category"),
-    publishedAt: dateOnlyValue(row, "published_at"),
-    updatedAt: dateOnlyValue(row, "updated_at", dateOnlyValue(row, "published_at")),
-    author: stringValue(row, "author_name"),
-    body: body.length ? body : [stringValue(row, "excerpt")],
-    coverImageUrl,
-    content: richTextContent(row.content),
-  };
+  return { slug: stringValue(row, "slug"), title: stringValue(row, "title"), excerpt: stringValue(row, "excerpt"), category: stringValue(row, "category"), publishedAt: dateOnlyValue(row, "publishedAt"), updatedAt: dateOnlyValue(row, "updatedAt", dateOnlyValue(row, "publishedAt")), author: stringValue(row, "authorName"), body: body.length ? body : [stringValue(row, "excerpt")], coverImageUrl: assetUrl(stringValue(row, "coverImagePath")), content: richTextContent(row.content) };
 }
 
-function externalUrl(value: string) {
-  if (!value) return undefined;
+function externalUrl(value: string) { if (!value) return undefined; try { const parsed = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`); return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString() : undefined; } catch { return undefined; } }
+function mapPartner(row: DatabaseRow): Partner { return { id: stringValue(row, "id"), name: stringValue(row, "name"), description: stringValue(row, "description"), websiteUrl: externalUrl(stringValue(row, "websiteUrl")), validFrom: stringValue(row, "validFrom") || undefined, validUntil: stringValue(row, "validUntil") || undefined, displayOrder: numberValue(row, "displayOrder"), logoUrl: assetUrl(stringValue(row, "logoPath")) }; }
+
+function databaseOrFallback<T>(databaseItems: T[] | null, fallbackItems: T[]) { return databaseItems === null && fallbackAllowed() ? fallbackItems : databaseItems ?? []; }
+
+function settingText(value: unknown) {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (value && typeof value === "object" && "value" in value) return settingText((value as { value?: unknown }).value);
+  return "";
+}
+
+export async function getPublicSiteSettings(): Promise<PublicSiteSettings> {
+  const fallback = { ...publicContact };
+  const db = getDatabase();
+  if (!db) return fallback;
   try {
-    const parsed = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
-    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString() : undefined;
+    const rows = await db.select({ key: siteSettings.key, value: siteSettings.value }).from(siteSettings);
+    const values = new Map(rows.map((row) => [row.key, settingText(row.value)]));
+    return {
+      email: values.get("contact_email") || fallback.email,
+      phone: values.get("contact_phone") || fallback.phone,
+      whatsapp: values.get("whatsapp_number") || fallback.whatsapp,
+      address: values.get("address") || fallback.address,
+      note: values.get("contact_note") || fallback.note,
+    };
   } catch {
-    return undefined;
+    return fallback;
   }
 }
 
-function mapPartner(row: DatabaseRow): Partner {
-  const client = publicClient();
-  const logoPath = stringValue(row, "logo_path");
-  const logoUrl = client && logoPath ? client.storage.from("public-images").getPublicUrl(logoPath).data.publicUrl : undefined;
-  return {
-    id: stringValue(row, "id"),
-    name: stringValue(row, "name"),
-    description: stringValue(row, "description"),
-    websiteUrl: externalUrl(stringValue(row, "website_url")),
-    validFrom: stringValue(row, "valid_from") || undefined,
-    validUntil: stringValue(row, "valid_until") || undefined,
-    displayOrder: numberValue(row, "display_order"),
-    logoUrl,
-  };
-}
-
-function databaseOrFallback<T>(databaseItems: T[] | null, fallbackItems: T[]) {
-  return databaseItems === null ? fallbackItems : databaseItems;
-}
-
 export async function getPublicCollections(): Promise<PublicCollections> {
-  const [documentRows, agendaRows, serviceRows, postRows, partnerRows] = await Promise.all([
-    publishedRows("collective_documents"),
-    publishedRows("agenda_items"),
-    publishedRows("services"),
-    publishedRows("posts"),
-    publishedRows("partners"),
-  ]);
-  const partners = partnerRows?.map(mapPartner).filter((item) => item.id && item.name).sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, "pt-BR")) ?? null;
-  return {
-    collectiveDocuments: databaseOrFallback(documentRows?.map(mapDocument).filter((item) => item.slug) ?? null, fallbackDocuments),
-    agendaItems: databaseOrFallback(agendaRows?.map(mapAgendaItem).filter((item) => item.slug) ?? null, fallbackAgendaItems),
-    services: databaseOrFallback(serviceRows?.map(mapService).filter((item) => item.slug) ?? null, fallbackServices),
-    posts: databaseOrFallback(postRows?.map(mapPost).filter((item) => item.slug) ?? null, fallbackPosts),
-    partners: databaseOrFallback(partners, []),
-  };
+  const [documentRows, agendaRows, serviceRows, postRows, partnerRows] = await Promise.all([publishedRows(collectiveDocuments), publishedRows(agendaItems), publishedRows(services), publishedRows(posts), publishedRows(partners)]);
+  const partnerItems = partnerRows?.map(mapPartner).filter((item) => item.id && item.name).sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, "pt-BR")) ?? null;
+  return { collectiveDocuments: databaseOrFallback(documentRows?.map(mapDocument).filter((item) => item.slug) ?? null, fallbackDocuments), agendaItems: databaseOrFallback(agendaRows?.map(mapAgendaItem).filter((item) => item.slug) ?? null, fallbackAgendaItems), services: databaseOrFallback(serviceRows?.map(mapService).filter((item) => item.slug) ?? null, fallbackServices), posts: databaseOrFallback(postRows?.map(mapPost).filter((item) => item.slug) ?? null, fallbackPosts), partners: databaseOrFallback(partnerItems, []) };
 }
 
-export async function getPublicDocuments() { return (await getPublicCollections()).collectiveDocuments; }
-export async function getPublicAgendaItems() { return (await getPublicCollections()).agendaItems; }
-export async function getPublicServices() { return (await getPublicCollections()).services; }
-export async function getPublicPosts() { return (await getPublicCollections()).posts; }
-export async function getPublicPartners() {
-  const rows = await publishedRows("partners");
-  const partners = rows?.map(mapPartner).filter((item) => item.id && item.name).sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, "pt-BR")) ?? null;
-  return databaseOrFallback(partners, []);
-}
+export async function getPublicDocuments() { const rows = await publishedRows(collectiveDocuments); return databaseOrFallback(rows?.map(mapDocument).filter((item) => item.slug) ?? null, fallbackDocuments); }
+export async function getPublicAgendaItems() { const rows = await publishedRows(agendaItems); return databaseOrFallback(rows?.map(mapAgendaItem).filter((item) => item.slug) ?? null, fallbackAgendaItems); }
+export async function getPublicServices() { const rows = await publishedRows(services); return databaseOrFallback(rows?.map(mapService).filter((item) => item.slug) ?? null, fallbackServices); }
+export async function getPublicPosts() { const rows = await publishedRows(posts); return databaseOrFallback(rows?.map(mapPost).filter((item) => item.slug) ?? null, fallbackPosts); }
+export async function getPublicPartners() { const rows = await publishedRows(partners); return databaseOrFallback(rows?.map(mapPartner).filter((item) => item.id && item.name).sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name, "pt-BR")) ?? null, []); }
 
-export function getCurrentDocuments() {
-  const activeStatuses: DocumentStatus[] = ["current", "extended", "negotiating"];
-  return fallbackDocuments.filter((document) => activeStatuses.includes(document.status));
-}
-
-export async function getDocumentBySlug(slug: string) {
-  return (await getPublicDocuments()).find((document) => document.slug === slug);
-}
-
-export async function getAgendaItemBySlug(slug: string) {
-  return (await getPublicAgendaItems()).find((item) => item.slug === slug);
-}
-
-export async function getServiceBySlug(slug: string) {
-  return (await getPublicServices()).find((service) => service.slug === slug);
-}
-
-export async function getPostBySlug(slug: string) {
-  return (await getPublicPosts()).find((post) => post.slug === slug);
-}
+export function getCurrentDocuments() { return fallbackDocuments.filter((document) => ["current", "extended", "negotiating"].includes(document.status)); }
+export async function getDocumentBySlug(slug: string) { return (await getPublicDocuments()).find((document) => document.slug === slug); }
+export async function getAgendaItemBySlug(slug: string) { return (await getPublicAgendaItems()).find((item) => item.slug === slug); }
+export async function getServiceBySlug(slug: string) { return (await getPublicServices()).find((service) => service.slug === slug); }
+export async function getPostBySlug(slug: string) { return (await getPublicPosts()).find((post) => post.slug === slug); }
 
 function searchCandidates(query: string, collections: PublicCollections) {
-  const normalized = query.trim().toLocaleLowerCase("pt-BR");
-  if (normalized.length < 2) return [];
-  const { collectiveDocuments, agendaItems, services, posts } = collections;
-  const candidates = [
-    ...collectiveDocuments.map((item) => ({ type: "Documento", title: item.title, excerpt: item.summary, href: `/convencoes/${item.slug}` })),
-    ...agendaItems.map((item) => ({ type: "Agenda", title: item.title, excerpt: item.description, href: "/agenda" })),
-    ...services.map((item) => ({ type: "Serviço", title: item.title, excerpt: item.excerpt, href: `/servicos/${item.slug}` })),
-    ...posts.map((item) => ({ type: "Notícia", title: item.title, excerpt: item.excerpt, href: `/noticias/${item.slug}` })),
-  ];
+  const normalized = query.trim().toLocaleLowerCase("pt-BR"); if (normalized.length < 2) return [];
+  const candidates = [...collections.collectiveDocuments.map((item) => ({ type: "Documento", title: item.title, excerpt: item.summary, href: `/convencoes/${item.slug}` })), ...collections.agendaItems.map((item) => ({ type: "Agenda", title: item.title, excerpt: item.description, href: "/agenda" })), ...collections.services.map((item) => ({ type: "Serviço", title: item.title, excerpt: item.excerpt, href: `/servicos/${item.slug}` })), ...collections.posts.map((item) => ({ type: "Notícia", title: item.title, excerpt: item.excerpt, href: `/noticias/${item.slug}` }))];
   return candidates.filter((item) => `${item.title} ${item.excerpt}`.toLocaleLowerCase("pt-BR").includes(normalized)).slice(0, 12);
 }
 
-export function searchPublishedContent(query: string) {
-  return searchCandidates(query, { collectiveDocuments: fallbackDocuments, agendaItems: fallbackAgendaItems, services: fallbackServices, posts: fallbackPosts, partners: [] });
-}
-
-export async function searchPublishedContentAsync(query: string) {
-  return searchCandidates(query, await getPublicCollections());
-}
+export function searchPublishedContent(query: string) { return searchCandidates(query, { collectiveDocuments: fallbackDocuments, agendaItems: fallbackAgendaItems, services: fallbackServices, posts: fallbackPosts, partners: [] }); }
+export async function searchPublishedContentAsync(query: string) { return searchCandidates(query, await getPublicCollections()); }

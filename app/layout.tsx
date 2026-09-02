@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
 import { SiteChrome } from "@/components/site-chrome";
+import { getPublicSiteSettings } from "@/lib/content";
 import "./globals.css";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
@@ -23,6 +23,7 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title: "Sindicomar", description: "Comércio forte, orientação segura.", images: ["/sindicomar-logo-horizontal.png"] },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="pt-BR"><body className={`${inter.variable} ${manrope.variable}`}><SiteChrome>{children}</SiteChrome><Analytics /></body></html>;
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const settings = await getPublicSiteSettings();
+  return <html lang="pt-BR"><body className={`${inter.variable} ${manrope.variable}`}><SiteChrome settings={settings}>{children}</SiteChrome></body></html>;
 }
