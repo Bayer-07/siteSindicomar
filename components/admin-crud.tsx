@@ -116,7 +116,7 @@ export const AdminCrud = forwardRef<AdminCrudHandle, AdminCrudProps>(function Ad
         payload[upload.key] = null;
       }
       // The API route is keyed by the Portuguese module identifier while
-      // `table` is the underlying MySQL table name used for date handling.
+      // `table` is the underlying PostgreSQL table name used for date handling.
       const response = await fetch(`/api/admin/${section}`, { method: isEditing ? "PATCH" : "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(isEditing ? { ...payload, id: record.id } : payload) });
       const data = await response.json().catch(() => ({})) as { message?: string };
       if (!response.ok) throw new Error(data.message ?? "Não foi possível salvar o registro.");

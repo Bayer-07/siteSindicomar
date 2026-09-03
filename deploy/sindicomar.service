@@ -1,0 +1,24 @@
+[Unit]
+Description=Portal Sindicomar (Next.js)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sindicomar
+Group=sindicomar
+WorkingDirectory=/srv/sindicomar/app
+EnvironmentFile=/srv/sindicomar/.env.production.local
+Environment=NODE_ENV=production
+Environment=PORT=3000
+ExecStart=/usr/bin/npm run start -- --hostname 127.0.0.1 --port 3000
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/srv/sindicomar/uploads
+
+[Install]
+WantedBy=multi-user.target

@@ -6,6 +6,9 @@ dist/
 test-results/
 playwright-report/
 coverage/
+backups/
+.postgres-data/
+.env.postgres
 .env
 .env.local
 .env.*.local

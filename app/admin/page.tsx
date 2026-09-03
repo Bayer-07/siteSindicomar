@@ -17,7 +17,7 @@ export default async function AdminPage() {
   const [rows, newRows, reviewRows, failedRows, membershipRows] = db ? await Promise.all([
     db.select({ protocol: submissions.protocol, kind: submissions.kind, requester_name: submissions.requesterName, status: submissions.status, created_at: submissions.createdAt }).from(submissions).orderBy(desc(submissions.createdAt)).limit(8),
     db.select({ value: count() }).from(submissions).where(eq(submissions.status, "new")),
-    db.select({ value: count() }).from(collectiveDocuments).where(and(eq(collectiveDocuments.status, "published"), gte(collectiveDocuments.validUntil, sql`CURRENT_DATE`), lte(collectiveDocuments.validUntil, sql`DATE_ADD(CURRENT_DATE, INTERVAL 90 DAY)`))),
+    db.select({ value: count() }).from(collectiveDocuments).where(and(eq(collectiveDocuments.status, "published"), gte(collectiveDocuments.validUntil, sql`CURRENT_DATE`), lte(collectiveDocuments.validUntil, sql`CURRENT_DATE + INTERVAL '90 days'`))),
     db.select({ value: count() }).from(submissions).where(eq(submissions.emailNotificationStatus, "failed")),
     db.select({ value: count() }).from(submissions).where(eq(submissions.kind, "membership")),
   ]) : [[], [{ value: 0 }], [{ value: 0 }], [{ value: 0 }], [{ value: 0 }]];

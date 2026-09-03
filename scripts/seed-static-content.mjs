@@ -1,9 +1,21 @@
 import fs from "node:fs";
 import { randomUUID } from "node:crypto";
-import mysql from "mysql2/promise";
+import pg from "pg";
+
+const { Pool } = pg;
+const conflictKeys = {
+  site_settings: ["key"],
+  pages: ["slug"],
+  categories: ["name"],
+  territories: ["municipality", "state"],
+  collective_documents: ["slug"],
+  agenda_items: ["slug"],
+  services: ["slug"],
+  posts: ["slug"],
+};
 
 const env = { ...process.env };
-for (const filename of [".env.development.local", ".env.local"]) {
+for (const filename of [".env.production.local", ".env.development.local", ".env.local", ".env"]) {
   const envFile = new URL(`../${filename}`, import.meta.url);
   if (fs.existsSync(envFile)) {
     for (const line of fs.readFileSync(envFile, "utf8").split(/\r?\n/)) {
@@ -20,7 +32,12 @@ if (!env.DATABASE_URL) {
   throw new Error("DATABASE_URL não configurada.");
 }
 
-const db = await mysql.createConnection({ uri: env.DATABASE_URL, timezone: "Z" });
+const pool = new Pool({
+  connectionString: env.DATABASE_URL,
+  max: 2,
+  ssl: env.DATABASE_SSL === "true" ? { rejectUnauthorized: env.DATABASE_SSL_REJECT_UNAUTHORIZED !== "false" } : undefined,
+});
+const db = await pool.connect();
 const published = { status: "published" };
 const tiptap = (...paragraphs) => ({ type: "doc", content: paragraphs.map((text) => ({ type: "paragraph", content: [{ type: "text", text }] })) });
 
@@ -69,47 +86,36 @@ const settings = [
   { key: "contact_note", value: "Atendimento institucional ao comércio varejista de Marechal Cândido Rondon e microrregião." },
 ];
 
-const dateTimeColumns = new Set(["published_at", "confirmed_at"]);
-const dateColumns = new Set(["valid_from", "valid_until"]);
-
 async function upsert(table, rows) {
   for (const original of rows) {
     const row = { id: randomUUID(), ...original };
     const columns = Object.keys(row);
     const values = columns.map((column) => serializeValue(column, row[column]));
-    const updates = columns.filter((column) => column !== "id").map((column) => `\`${column}\` = VALUES(\`${column}\`)`).join(", ");
-    await db.execute(`INSERT INTO \`${table}\` (${columns.map((column) => `\`${column}\``).join(", ")}) VALUES (${columns.map(() => "?").join(", ")}) ON DUPLICATE KEY UPDATE ${updates}`, values);
+    const updates = columns.filter((column) => column !== "id").map((column) => `"${column}" = EXCLUDED."${column}"`).join(", ");
+    const conflict = (conflictKeys[table] ?? ["id"]).map((column) => `"${column}"`).join(", ");
+    await db.query(`INSERT INTO "${table}" (${columns.map((column) => `"${column}"`).join(", ")}) VALUES (${columns.map((_, index) => `$${index + 1}`).join(", ")}) ON CONFLICT (${conflict}) DO UPDATE SET ${updates}`, values);
   }
   console.log(`${table}: ${rows.length} registros sincronizados`);
 }
 
 async function upsertNamed(table, rows, matchKeys) {
   for (const row of rows) {
-    const where = matchKeys.map((key) => `\`${key}\` = ?`).join(" AND ");
-    const [found] = await db.execute(`SELECT id FROM \`${table}\` WHERE ${where} LIMIT 1`, matchKeys.map((key) => serializeValue(key, row[key])));
-    const id = Array.isArray(found) && found[0]?.id ? found[0].id : randomUUID();
+    const where = matchKeys.map((key, index) => `"${key}" = $${index + 1}`).join(" AND ");
+    const found = await db.query(`SELECT id FROM "${table}" WHERE ${where} LIMIT 1`, matchKeys.map((key) => serializeValue(key, row[key])));
+    const id = found.rows[0]?.id ?? randomUUID();
     const next = { id, ...row };
     const columns = Object.keys(next);
-    const updates = columns.filter((column) => column !== "id").map((column) => `\`${column}\` = VALUES(\`${column}\`)`).join(", ");
-    await db.execute(`INSERT INTO \`${table}\` (${columns.map((column) => `\`${column}\``).join(", ")}) VALUES (${columns.map(() => "?").join(", ")}) ON DUPLICATE KEY UPDATE ${updates}`, columns.map((column) => serializeValue(column, next[column])));
+    const updates = columns.filter((column) => column !== "id").map((column) => `"${column}" = EXCLUDED."${column}"`).join(", ");
+    const conflict = (conflictKeys[table] ?? ["id"]).map((column) => `"${column}"`).join(", ");
+    await db.query(`INSERT INTO "${table}" (${columns.map((column) => `"${column}"`).join(", ")}) VALUES (${columns.map((_, index) => `$${index + 1}`).join(", ")}) ON CONFLICT (${conflict}) DO UPDATE SET ${updates}`, columns.map((column) => serializeValue(column, next[column])));
   }
   console.log(`${table}: ${rows.length} registros sincronizados`);
 }
 
 function serializeValue(column, value) {
-  // site_settings.value is a MySQL JSON column even when the setting is a
-  // plain text value. Encode primitives as valid JSON strings as well.
+  // JSONB accepts objects and primitives when sent as a serialized JSON value.
   if (column === "value" && value !== undefined && value !== null) return JSON.stringify(value);
-  if (dateTimeColumns.has(column) && value) {
-    const date = new Date(value);
-    if (!Number.isNaN(date.getTime())) return date.toISOString().slice(0, 23).replace("T", " ");
-  }
-  if (dateColumns.has(column) && value) {
-    const date = new Date(`${value}T00:00:00Z`);
-    if (!Number.isNaN(date.getTime())) return date.toISOString().slice(0, 10);
-  }
   if (value && typeof value === "object") return JSON.stringify(value);
-  if (typeof value === "boolean") return value ? 1 : 0;
   return value ?? null;
 }
 
@@ -123,4 +129,5 @@ await upsert("categories", categories);
 await upsert("territories", territories);
 await upsertNamed("directors", directors, ["name", "role"]);
 await upsertNamed("partners", partners, ["name"]);
-await db.end();
+db.release();
+await pool.end();

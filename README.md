@@ -1,208 +1,130 @@
 # Portal Sindicomar
 
-Aplicação do portal institucional e de serviços do Sindicomar. O projeto usa Next.js, React, TypeScript e MySQL, com painel administrativo protegido por senha e TOTP/MFA. Os conteúdos trabalhistas que acompanham o código são demonstrativos até a validação do Sindicato.
+Portal institucional e de serviços do Sindicomar, construído com Next.js, React, TypeScript, Tailwind e PostgreSQL. O painel administrativo usa senha + TOTP/MFA. O conteúdo trabalhista que acompanha o código é demonstrativo até a aprovação do Sindicato.
 
 ## Requisitos
 
-- Node.js 24.x e npm;
-- MySQL 8.x (local ou hospedado);
-- Docker Desktop, opcional para executar o MySQL localmente;
-- uma conta SMTP (Gmail/Google Workspace) ou Resend para os e-mails;
-- Cloudflare Turnstile, opcional em desenvolvimento e recomendado em produção.
+- Node.js 24.x
+- npm
+- Docker Desktop (local) ou Docker Engine + Compose (servidor)
+- PostgreSQL 16 (o projeto pode iniciá-lo pelo Compose)
 
-## Executar localmente
+## Configuração local
 
-### 1. Instalar e configurar
+1. Copie .env.example para .env.development.local.
+2. Preencha ADMIN_EMAIL, AUTH_SESSION_SECRET, AUTH_ENCRYPTION_KEY e o transporte de e-mail.
+3. Para o PostgreSQL Docker local, use:
 
-Na pasta `portal`:
+    POSTGRES_AUTO_START=true
+    POSTGRES_DB=sindicomar
+    POSTGRES_USER=app_user
+    POSTGRES_PASSWORD=uma-senha-local-forte
+    POSTGRES_PORT=5433
+    POSTGRES_DATA_DIR=./.postgres-data
+    DATABASE_URL=postgresql://app_user:uma-senha-local-forte@127.0.0.1:5433/sindicomar
+    DATABASE_MIGRATION_URL=postgresql://app_user:uma-senha-local-forte@127.0.0.1:5433/sindicomar
+    DATABASE_SSL=false
+    UPLOADS_DIR=./.local-uploads
+    ALLOW_RELATIVE_UPLOADS=true
+    ALLOW_RELATIVE_DATA=true
 
-```bash
-npm install
-```
+4. Execute bash build.sh build-only para instalar dependências, iniciar o PostgreSQL, aplicar migrations, garantir o administrador e gerar o build.
+5. Execute npm run start para abrir a versão de produção em http://localhost:3000.
 
-Copie `.env.example` para `.env.local` e preencha as variáveis. Nunca versionar arquivos `.env`.
+Para desenvolvimento com recarga automática, use npm run dev depois de executar as migrations.
 
-Para um MySQL local com Docker, por exemplo:
+## Scripts principais
 
-```bash
-docker volume create sindicomar_mysql_data
-docker run --name sindicomar-mysql --restart unless-stopped \
-  -e MYSQL_DATABASE=sindicomar \
-  -e MYSQL_USER=sindicomar \
-  -e MYSQL_PASSWORD=troque-esta-senha \
-  -e MYSQL_ROOT_PASSWORD=troque-esta-senha-root \
-  -p 3307:3306 \
-  -v sindicomar_mysql_data:/var/lib/mysql \
-  -d mysql:8.4
-```
+- npm run db:migrate: aplica as migrations PostgreSQL de forma idempotente.
+- npm run db:generate: gera uma nova migration a partir do schema Drizzle; revise o SQL antes de publicar.
+- npm run db:seed: insere o conteúdo demonstrativo sem duplicar registros.
+- npm run db:ensure-admin: cria o administrador apenas se ele ainda não existir.
+- npm run db:create-admin: cria ou redefine a senha do administrador.
+- npm run db:check: valida tabelas, migrations, pgcrypto e a remoção da tabela de alertas.
+- npm run db:backup: cria um dump PostgreSQL compactado em backups usando o usuário de migração/administração.
+- npm run db:restore -- caminho/arquivo.dump: restaura somente com CONFIRM_RESTORE=YES, usando o usuário de migração/administração.
+- npm run typecheck, npm run lint, npm test e npm run build: validações do projeto.
 
-Use no `.env.local` a URL correspondente, por exemplo:
+## Migração do MySQL existente
 
-```env
-DATABASE_URL=mysql://sindicomar:troque-esta-senha@127.0.0.1:3307/sindicomar
-```
+O MySQL permanece apenas como origem durante a transição. Faça backup do banco e do diretório de uploads antes de iniciar.
 
-### 2. Criar tabelas, conteúdo e administrador
+Defina temporariamente:
 
-```bash
-npm run db:migrate
-npm run db:seed              # somente conteúdo demonstrativo/aprovado
-npm run db:create-admin
-```
+    MYSQL_SOURCE_URL=mysql://usuario:senha@host:3306/sindicomar
+    POSTGRES_DATABASE_URL=postgresql://migration_user:senha@127.0.0.1:5432/sindicomar
+    MYSQL_UPLOADS_DIR=/caminho/para/uploads-antigos
+    UPLOADS_DIR=/srv/sindicomar/uploads
 
-`db:create-admin` usa `ADMIN_EMAIL` e `ADMIN_INITIAL_PASSWORD`. Se a senha não estiver definida, o script solicita uma senha no terminal; ela deve ter pelo menos 12 caracteres. Depois do primeiro login, cadastre o TOTP/MFA no aplicativo autenticador. `ADMIN_INITIAL_PASSWORD` pode ser removida após a criação do administrador.
+Faça primeiro um ensaio sem gravar:
 
-### 3. Subir o serviço
+    npm run db:migrate:mysql-to-postgres -- --dry-run
 
-Desenvolvimento, com recarregamento automático:
+Depois execute a migração:
 
-```bash
-npm run dev
-```
+    npm run db:migrate:mysql-to-postgres
 
-Abra [http://localhost:3000](http://localhost:3000). O painel fica em [http://localhost:3000/admin/login](http://localhost:3000/admin/login).
+O script importa todas as tabelas atuais, preserva IDs e relacionamentos, converte JSON/booleanos/timestamps, valida UUIDs e JSON, compara quantidades e verifica hashes dos arquivos. As sessões administrativas são invalidadas após a importação; o administrador, TOTP, códigos de recuperação, auditoria e solicitações são preservados.
 
-Produção local:
+mysql2 existe somente como dependência de desenvolvimento para esta migração única. Depois da conferência final, ele pode ser removido do package.json e do package-lock.json.
 
-```bash
-npm run build
-npm run start
-```
+## Produção no Ubuntu
 
-O comando `start` deve ser executado somente depois do `build`. Para trocar a porta, use a variável `PORT` ou os argumentos aceitos pelo Next.js.
+Estrutura recomendada:
 
-### Automação com `build.sh`
+    /srv/sindicomar/
+    ├── app/
+    ├── postgres/
+    ├── uploads/
+    ├── backups/
+    └── .env.production.local
 
-Em um servidor Linux, VPS ou terminal SSH, o script automatiza a preparação do ambiente, a migração do banco, a criação idempotente do administrador, o build e a inicialização do Next.js:
+No arquivo de ambiente de produção, use DATABASE_URL com o usuário da aplicação e DATABASE_MIGRATION_URL com o usuário reservado para deploy. Use POSTGRES_DATA_DIR=/srv/sindicomar/postgres, UPLOADS_DIR=/srv/sindicomar/uploads e POSTGRES_PORT=5432.
 
-```bash
-chmod +x build.sh
-./build.sh
-```
+Antes do primeiro build, crie os diretórios persistentes e dê ao processo do PostgreSQL (UID 999 na imagem oficial) acesso ao diretório de dados:
 
-O modo padrão (`full`) mantém o serviço rodando em primeiro plano. Outros modos:
+    sudo mkdir -p /srv/sindicomar/postgres /srv/sindicomar/uploads /srv/sindicomar/backups
+    sudo chown -R 999:999 /srv/sindicomar/postgres
 
-```bash
-./build.sh prepare-only   # dependências, banco, migração e administrador
-./build.sh build-only     # preparação + build, sem iniciar o servidor
-./build.sh start-only     # inicia um build já preparado
-```
+Na primeira configuração, informe também POSTGRES_ADMIN_URL e os nomes/senhas de POSTGRES_APP_USER e POSTGRES_MIGRATION_USER. Provisione os dois usuários e a extensão pgcrypto uma única vez antes de aplicar as migrations:
 
-Para usar um MySQL Docker gerenciado pelo próprio script, defina `MYSQL_AUTO_START=true`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD` e `MYSQL_ROOT_PASSWORD`. Em hospedagens que já fornecem MySQL, mantenha `MYSQL_AUTO_START=false` e informe apenas `DATABASE_URL`.
+    npm run db:provision-roles
 
-Em um Node.js Web App da Hostinger, use `bash build.sh build-only` como comando de build e `bash build.sh start-only` como comando de inicialização. Não use o modo `full` no comando de build da Hostinger, pois ele mantém o processo aberto. Defina `ADMIN_INITIAL_PASSWORD` somente no primeiro deploy, quando o administrador ainda não existir; os deploys seguintes preservam a senha existente. Para rodar typecheck, lint e testes antes do build, defina `RUN_CHECKS=true`.
+Depois, deixe DATABASE_URL apontando para o usuário da aplicação e DATABASE_MIGRATION_URL para o usuário de migração. O navegador nunca recebe nenhuma dessas URLs. Se POSTGRES_ADMIN_URL permanecer no ambiente durante o primeiro build, o build.sh repete essa provisão de forma idempotente; depois ela pode ser removida do ambiente de execução.
 
-## Variáveis de ambiente
+Suba o banco:
 
-Variáveis mínimas para produção:
+    docker compose --env-file .env.production.local -f docker-compose.postgres.yml up -d postgres
+    npm run db:migrate
+    npm run db:check
+    npm run build
 
-```env
-DATABASE_URL=mysql://usuario:senha@host:3306/sindicomar
-NEXT_PUBLIC_SITE_URL=https://www.sindicomar.com.br
-ADMIN_EMAIL=administrador@exemplo.com
-AUTH_SESSION_SECRET=segredo-aleatorio-com-pelo-menos-32-caracteres
-AUTH_ENCRYPTION_KEY=chave-aleatoria-de-32-bytes-em-hexadecimal
-UPLOADS_DIR=/caminho/persistente/uploads
-FORM_NOTIFICATION_EMAIL=sindicomarmarechal@gmail.com
-```
+O arquivo deploy/sindicomar.service mantém o Next.js ativo via systemd. Copie-o para /etc/systemd/system/, ajuste o usuário e o diretório do projeto, e execute:
 
-Para enviar por Gmail/Google Workspace:
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now sindicomar
 
-```env
-EMAIL_TRANSPORT=gmail
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=465
-SMTP_SECURE=true
-SMTP_USER=conta-de-envio@gmail.com
-SMTP_PASS=senha-de-aplicativo-sem-espacos
-SMTP_FROM_EMAIL=conta-de-envio@gmail.com
-```
+O Nginx deve encaminhar HTTPS para 127.0.0.1:3000. Um exemplo está em deploy/nginx/sindicomar.conf.
 
-Cada formulário tenta enviar duas mensagens: o aviso de nova solicitação para `FORM_NOTIFICATION_EMAIL` e a confirmação para o e-mail informado pelo solicitante. Se uma entrega falhar, a outra continua sendo tentada e a solicitação permanece no painel.
+## Backup e restauração
 
-Para usar Resend em vez de SMTP, defina `EMAIL_TRANSPORT=resend`, `RESEND_API_KEY` e `RESEND_FROM_EMAIL` com um remetente de domínio verificado.
+Execute diariamente:
 
-As variáveis `NEXT_PUBLIC_TURNSTILE_SITE_KEY` e `TURNSTILE_SECRET_KEY` ativam a proteção antispam. Depois da migração, remova as variáveis do Supabase do ambiente de produção.
+    npm run db:backup
+    tar -czf backups/uploads-$(date +%F).tar.gz -C /srv/sindicomar uploads
 
-## Publicar na Hostinger
+Mantenha cópias fora do servidor e teste a restauração mensalmente em uma base descartável:
 
-O projeto deve ser criado no hPanel como **Node.js Web App**. A disponibilidade desse recurso depende do plano contratado; se essa opção não aparecer no hPanel, o plano não atende a esta aplicação. Consulte a [documentação oficial de implantação de aplicações Node.js na Hostinger](https://www.hostinger.com/support/how-to-deploy-a-nodejs-website-in-hostinger/).
+    CONFIRM_RESTORE=YES RESTORE_DATABASE_URL=postgresql://... npm run db:restore -- backups/sindicomar-AAAA-MM-DD.dump
 
-### 1. Preparar o MySQL
+Nunca exponha a porta do PostgreSQL publicamente, nem coloque arquivos .env*, dumps ou uploads no Git.
 
-1. Crie o banco e o usuário MySQL no hPanel.
-2. Anote host, porta, nome do banco, usuário e senha.
-3. Monte `DATABASE_URL` com esses dados.
-4. Configure `UPLOADS_DIR` em uma pasta persistente fora do diretório que será substituído por novos deploys.
+## Build automatizado
 
-### 2. Criar e configurar o aplicativo
+build.sh possui três modos úteis:
 
-No hPanel, conecte o repositório GitHub ou envie o projeto compactado. Use:
+- build-only: prepara banco, migrations e build, sem iniciar o servidor;
+- prepare-only: prepara PostgreSQL, migrations e administrador;
+- full: executa a preparação, gera o build e inicia o Next.js.
 
-- framework: Next.js;
-- Node.js: 24.x;
-- diretório raiz: a pasta que contém `package.json`;
-- comando de build: `npm run build`;
-- comando de inicialização: `npm run start`;
-- variáveis de ambiente: as mesmas usadas em produção, sem colocar segredos no repositório.
-
-Depois de salvar as variáveis, faça um novo deploy. A Hostinger substitui os arquivos do deploy anterior, portanto não salve uploads dentro da pasta do projeto. O banco e a pasta indicada por `UPLOADS_DIR` precisam permanecer fora do diretório temporário de cada release.
-
-### 3. Inicializar o banco e o administrador
-
-Execute no terminal/SSH da hospedagem, na raiz do projeto:
-
-```bash
-npm run db:migrate
-npm run db:create-admin
-```
-
-Execute `npm run db:seed` somente se o conteúdo demonstrativo ou aprovado estiver pronto para ser carregado. Em seguida, faça login em `/admin/login` e configure o TOTP/MFA.
-
-### 4. Domínio e HTTPS
-
-1. Adicione `sindicomar.com.br` e `www.sindicomar.com.br` no aplicativo da Hostinger.
-2. No Registro.br, altere apenas os registros DNS indicados pela Hostinger.
-3. Preserve os registros MX e TXT usados pelo Google Workspace.
-4. Ative o HTTPS e confirme o redirecionamento para o domínio principal.
-
-## Migração do Supabase
-
-Faça um backup antes da migração. Para uma migração única, mantenha temporariamente `NEXT_PUBLIC_SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` disponíveis no ambiente de execução e rode:
-
-```bash
-npm run db:migrate:supabase
-```
-
-O script copia registros e arquivos para o MySQL e para `UPLOADS_DIR`. Depois de conferir quantidades, arquivos, notícias, parceiros, documentos, agenda e solicitações, remova as variáveis do Supabase do ambiente de produção.
-
-## Segurança e operação
-
-- O acesso ao MySQL ocorre somente no servidor; nenhuma chave administrativa vai para o navegador.
-- O painel usa sessão HTTP-only, senha com hash, TOTP obrigatório e códigos de recuperação.
-- PDFs e imagens são validados por tipo e tamanho; PDFs têm limite de 20 MB e imagens, 10 MB.
-- Nunca sobrescreva arquivos de produção manualmente; faça backup antes de trocar hospedagem ou domínio.
-- Configure backups do MySQL e teste a restauração periodicamente.
-- Em produção, use `DEMO_MODE=false` e publique apenas conteúdo aprovado pelo Sindicomar.
-
-## Testes antes do deploy
-
-```bash
-npm run typecheck
-npm run lint
-npm test
-npm run build
-npm run test:e2e       # com o servidor local ativo
-```
-
-Antes de apontar o domínio, valide login/MFA, criação e edição no admin, publicação, upload e leitura de PDF, imagens de notícias e parceiros, formulários, protocolo, busca, agenda e geração de calendário `.ics`.
-
-## Conteúdo ainda necessário
-
-- diretoria, cargos e mandato;
-- base territorial, categorias e CNAEs;
-- CCTs, ACTs, termos, atas, circulares e comunicados atuais;
-- serviços, benefícios, parceiros e condições vigentes;
-- endereço, horários, WhatsApp e e-mail final dos formulários;
-- fotos locais autorizadas;
-- revisão jurídica das páginas legais.
+Em produção, prefira executar build.sh build-only durante o deploy e reiniciar o serviço systemd após a validação. O build instala temporariamente as devDependencies necessárias para compilar; depois do corte definitivo, remova a ferramenta mysql2 de migração e execute npm install --package-lock-only para atualizar o lockfile antes do próximo deploy.

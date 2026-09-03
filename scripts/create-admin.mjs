@@ -2,12 +2,13 @@ import fs from "node:fs";
 import process from "node:process";
 import readline from "node:readline/promises";
 import { randomUUID } from "node:crypto";
-import mysql from "mysql2/promise";
+import pg from "pg";
 import bcrypt from "bcryptjs";
 
+const { Pool } = pg;
+
 function loadEnv() {
-  if (process.env.DATABASE_URL) return;
-  for (const filename of [".env.development.local", ".env.local"]) {
+  for (const filename of [".env.production.local", ".env.development.local", ".env.local", ".env"]) {
     try {
       const source = fs.readFileSync(filename, "utf8");
       for (const line of source.split(/\r?\n/)) {
@@ -28,9 +29,14 @@ const password = process.env.ADMIN_INITIAL_PASSWORD || await prompt.question("Se
 prompt.close();
 if (password.length < 12) throw new Error("A senha deve ter pelo menos 12 caracteres.");
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL não configurada.");
-const connection = await mysql.createConnection({ uri: process.env.DATABASE_URL, timezone: "Z" });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 2,
+  ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== "false" } : undefined,
+});
+const connection = await pool.connect();
 try {
   const passwordHash = await bcrypt.hash(password, 12);
-  await connection.execute("INSERT INTO admin_users (id, email, password_hash, totp_enabled) VALUES (?, ?, ?, 0) ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), failed_login_count = 0, locked_until = NULL", [randomUUID(), email, passwordHash]);
+  await connection.query("INSERT INTO admin_users (id, email, password_hash, totp_enabled) VALUES ($1, $2, $3, false) ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, failed_login_count = 0, locked_until = NULL", [randomUUID(), email, passwordHash]);
   console.log(`Administrador ${email} configurado. Execute o primeiro login para cadastrar o TOTP.`);
-} finally { await connection.end(); }
+} finally { connection.release(); await pool.end(); }

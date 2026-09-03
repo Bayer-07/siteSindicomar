@@ -2,11 +2,12 @@ import fs from "node:fs";
 import process from "node:process";
 import readline from "node:readline/promises";
 import { randomUUID } from "node:crypto";
-import mysql from "mysql2/promise";
+import pg from "pg";
 import bcrypt from "bcryptjs";
 
+const { Pool } = pg;
+
 function loadEnv() {
-  if (process.env.DATABASE_URL) return;
   for (const filename of [".env.production.local", ".env.development.local", ".env.local", ".env"]) {
     try {
       const source = fs.readFileSync(filename, "utf8");
@@ -27,10 +28,15 @@ const email = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
 if (!email) throw new Error("Informe ADMIN_EMAIL.");
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL não configurada.");
 
-const connection = await mysql.createConnection({ uri: process.env.DATABASE_URL, timezone: "Z" });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 2,
+  ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== "false" } : undefined,
+});
+const connection = await pool.connect();
 try {
-  const [rows] = await connection.execute("SELECT id FROM admin_users WHERE email = ? LIMIT 1", [email]);
-  if (Array.isArray(rows) && rows.length) {
+  const result = await connection.query("SELECT id FROM admin_users WHERE email = $1 LIMIT 1", [email]);
+  if (result.rows.length) {
     console.log(`Administrador ${email} já existe; senha preservada.`);
   } else {
     let password = process.env.ADMIN_INITIAL_PASSWORD || "";
@@ -42,9 +48,10 @@ try {
     if (password.length < 12) throw new Error("ADMIN_INITIAL_PASSWORD deve ter pelo menos 12 caracteres para criar o administrador.");
 
     const passwordHash = await bcrypt.hash(password, 12);
-    await connection.execute("INSERT INTO admin_users (id, email, password_hash, totp_enabled) VALUES (?, ?, ?, 0)", [randomUUID(), email, passwordHash]);
+    await connection.query("INSERT INTO admin_users (id, email, password_hash, totp_enabled) VALUES ($1, $2, $3, false)", [randomUUID(), email, passwordHash]);
     console.log(`Administrador ${email} criado. Faça o primeiro login para cadastrar o TOTP/MFA.`);
   }
 } finally {
-  await connection.end();
+  connection.release();
+  await pool.end();
 }
