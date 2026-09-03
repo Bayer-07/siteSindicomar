@@ -93,7 +93,9 @@ export const AdminCrud = forwardRef<AdminCrudHandle, AdminCrudProps>(function Ad
   }
 
   async function save(event: FormEvent) {
-    event.preventDefault(); setSaving(true); setError("");
+    event.preventDefault();
+    if (saving) return;
+    setSaving(true); setError("");
     try {
       const payload = serializeRecord(record, fields);
       delete payload.id; delete payload.created_at; delete payload.updated_at;
@@ -174,7 +176,7 @@ function DocumentUploadField({ allowUpload, existingPath, existingUrl, selectedF
   }
 
   const previewUrl = selectedUrl || existingUrl;
-  return <div className="upload-field field-full"><FileUp aria-hidden="true" /><div className="upload-field-content"><strong>PDF oficial</strong><small>{allowUpload ? "application/pdf, até 20 MB. Ao trocar o arquivo, uma nova versão será criada e a anterior ficará preservada." : "Arquivo oficial atualmente associado a este registro."}</small>{previewUrl ? <iframe className="document-upload-preview" src={previewUrl} title={`Prévia de ${fileName}`} /> : <div className="document-file-unavailable"><small>{hasExistingFile ? `Arquivo cadastrado: ${fileName}` : "Nenhum PDF anexado ainda."}</small></div>}<div className="document-file-actions">{previewUrl && <a className="document-file-link" href={previewUrl} target="_blank" rel="noreferrer">{selectedFile ? "Abrir PDF selecionado" : "Abrir PDF atual"}</a>}{selectedFile && <button className="upload-remove-button" type="button" onClick={clearSelection}>Cancelar novo arquivo</button>}</div>{allowUpload && <label className="upload-picker"><span>{hasExistingFile ? "Escolher nova versão" : "Escolher PDF"}</span><input ref={fileInputRef} type="file" accept="application/pdf" onChange={(event) => onSelect(event.target.files?.[0] ?? null)} /></label>}</div></div>;
+  return <div className="upload-field field-full"><FileUp aria-hidden="true" /><div className="upload-field-content"><strong>PDF oficial</strong><small>{allowUpload ? "application/pdf, até 20 MB. Ao trocar o arquivo, o documento atual será atualizado e o PDF anterior ficará indisponível." : "Arquivo oficial atualmente associado a este registro."}</small>{previewUrl ? <iframe className="document-upload-preview" src={previewUrl} title={`Prévia de ${fileName}`} /> : <div className="document-file-unavailable"><small>{hasExistingFile ? `Arquivo cadastrado: ${fileName}` : "Nenhum PDF anexado ainda."}</small></div>}<div className="document-file-actions">{previewUrl && <a className="document-file-link" href={previewUrl} target="_blank" rel="noreferrer">{selectedFile ? "Abrir PDF selecionado" : "Abrir PDF atual"}</a>}{selectedFile && <button className="upload-remove-button" type="button" onClick={clearSelection}>Cancelar novo arquivo</button>}</div>{allowUpload && <label className="upload-picker"><span>{hasExistingFile ? "Escolher outro PDF" : "Escolher PDF"}</span><input ref={fileInputRef} type="file" accept="application/pdf" onChange={(event) => onSelect(event.target.files?.[0] ?? null)} /></label>}</div></div>;
 }
 
 function SubmissionDetails({ record }: { record: AdminRecord }) {

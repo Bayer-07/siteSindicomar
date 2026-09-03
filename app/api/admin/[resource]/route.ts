@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { getVerifiedAdmin } from "@/lib/auth";
 import { getDatabase } from "@/lib/db";
 import { optionValues } from "@/lib/admin-options";
-import { agendaItems, auditLog, collectiveDocuments, contentRevisions, directors, documentRelations, pages, partners, posts, services, siteSettings, submissions, submissionEvents, mediaFiles } from "@/lib/db/schema";
+import { agendaItems, auditLog, collectiveDocuments, contentRevisions, directors, pages, partners, posts, services, siteSettings, submissions, submissionEvents, mediaFiles } from "@/lib/db/schema";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -151,20 +151,15 @@ function hasTextContent(value: unknown): boolean {
   return Array.isArray(node.content) && node.content.some(hasTextContent);
 }
 
-async function nextDocumentSlug(db: NonNullable<ReturnType<typeof getDatabase>>, baseSlug: string, versionNumber: number) {
-  const root = baseSlug.replace(/-v\d+$/i, "");
-  let version = versionNumber;
-  while (true) {
-    const suffix = `-v${version}`;
-    const candidate = `${root.slice(0, 190 - suffix.length)}${suffix}`;
-    const rows = await db.select({ id: collectiveDocuments.id }).from(collectiveDocuments).where(eq(collectiveDocuments.slug, candidate)).limit(1);
-    if (!rows.length) return candidate;
-    version += 1;
-  }
-}
-
 async function updateMediaVisibility(db: NonNullable<ReturnType<typeof getDatabase>>, path: unknown, visibility: "public" | "private") {
   if (typeof path === "string" && path) await db.update(mediaFiles).set({ visibility }).where(eq(mediaFiles.storageKey, path));
+}
+
+async function retireMedia(db: NonNullable<ReturnType<typeof getDatabase>>, path: unknown) {
+  if (typeof path !== "string" || !path) return;
+  // Keep the previous file metadata and bytes for audit/rollback, but make it
+  // private and unavailable through the public media route.
+  await db.update(mediaFiles).set({ visibility: "private", deletedAt: new Date() }).where(eq(mediaFiles.storageKey, path));
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ resource: string }> }) {
@@ -216,34 +211,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ re
     const previousRows = await db.select().from(table).where(eq(table.id, id)).limit(1); const previous = previousRows[0];
     if (!previous) return NextResponse.json({ message: "Registro não encontrado." }, { status: 404 });
 
-    // PDFs are immutable: replacing an attached file creates a new document
-    // version and archives the previous row instead of overwriting it.
-    if (resource === "documentos") {
-      const previousDocument = previous as unknown as Record<string, unknown>;
-      const nextFile = typeof payload.storagePath === "string" ? payload.storagePath : "";
-      const previousFile = typeof previousDocument.storagePath === "string" ? previousDocument.storagePath : "";
-      if (nextFile && nextFile !== previousFile) {
-        const nextVersion = Number(previousDocument.versionNumber ?? 1) + 1;
-        const nextSlug = await nextDocumentSlug(db, typeof payload.slug === "string" && payload.slug ? payload.slug : String(previousDocument.slug ?? "documento"), nextVersion);
-        const nextId = randomUUID();
-        const nextDocument: Record<string, unknown> = { ...previousDocument, ...payload, id: nextId, slug: nextSlug, versionNumber: nextVersion, createdAt: new Date(), updatedAt: new Date() };
-        if (nextDocument.status === "published" && !nextDocument.publishedAt) nextDocument.publishedAt = new Date();
-        await db.update(collectiveDocuments).set({ status: "archived" }).where(eq(collectiveDocuments.id, id));
-        await db.insert(collectiveDocuments).values(nextDocument as never);
-        await db.insert(documentRelations).values({ id: randomUUID(), sourceDocumentId: nextId, relatedDocumentId: id, relationType: "supersedes", createdAt: new Date() });
-        await db.insert(auditLog).values({ id: randomUUID(), actorEmail: admin.email, action: "new_version", entityType: resource, entityId: nextId, beforeData: previous, afterData: nextDocument });
-        await saveRevision(db, resource, nextId, nextDocument, admin.email);
-        await updateMediaVisibility(db, previousFile, "private");
-        await updatePublishedMedia(db, resource, nextDocument);
-        return NextResponse.json({ data: nextDocument });
-      }
-    }
+    const previousRecord = previous as unknown as Record<string, unknown>;
+    const nextFile = resource === "documentos" && typeof payload.storagePath === "string" ? payload.storagePath : "";
+    const previousFile = resource === "documentos" && typeof previousRecord.storagePath === "string" ? previousRecord.storagePath : "";
+    const replacedDocumentFile = Boolean(nextFile && nextFile !== previousFile);
+    if (replacedDocumentFile) payload.versionNumber = Number(previousRecord.versionNumber ?? 1) + 1;
     await db.update(table).set(payload as never).where(eq(table.id, id));
     const updatedRows = await db.select().from(table).where(eq(table.id, id)).limit(1); const data = updatedRows[0] ?? { ...previous, ...payload };
     await db.insert(auditLog).values({ id: randomUUID(), actorEmail: admin.email, action: "update", entityType: resource, entityId: id, beforeData: previous, afterData: data });
     await saveRevision(db, resource, id, data, admin.email);
     await updatePublishedMedia(db, resource, data);
-    const previousRecord = previous as unknown as Record<string, unknown>;
+    if (replacedDocumentFile) await retireMedia(db, previousFile);
     const dataRecord = data as unknown as Record<string, unknown>;
     if (resource === "solicitacoes" && previousRecord.status !== dataRecord.status) {
       await db.insert(submissionEvents).values({ id: randomUUID(), submissionId: id, eventType: "status_changed", fromStatus: typeof previousRecord.status === "string" ? previousRecord.status : null, toStatus: typeof dataRecord.status === "string" ? dataRecord.status : null, details: {}, actorEmail: admin.email, createdAt: new Date() });
