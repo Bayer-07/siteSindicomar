@@ -46,6 +46,20 @@ try {
     else await client.query("ALTER ROLE " + identifier(role) + " LOGIN PASSWORD " + literal(password));
     await client.query("GRANT CONNECT ON DATABASE " + identifier(dbName) + " TO " + identifier(role));
   }
+  // Existing databases may have been initialized with the application role.
+  // Transfer ownership so the restricted migration role can apply structural
+  // migrations without granting it superuser privileges.
+  const publicTables = await client.query("SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
+  for (const row of publicTables.rows) {
+    const tableName = identifier(row.tablename);
+    await client.query("ALTER TABLE public." + tableName + " OWNER TO " + identifier(migrationUser));
+  }
+  const publicSequences = await client.query("SELECT sequencename FROM pg_sequences WHERE schemaname = 'public'");
+  for (const row of publicSequences.rows) {
+    const sequenceName = identifier(row.sequencename);
+    await client.query("ALTER SEQUENCE public." + sequenceName + " OWNER TO " + identifier(migrationUser));
+  }
+  await client.query("ALTER FUNCTION public.sindicomar_set_updated_at() OWNER TO " + identifier(migrationUser)).catch(() => {});
   await client.query("GRANT USAGE ON SCHEMA public TO " + identifier(appUser) + ", " + identifier(migrationUser));
   await client.query("REVOKE CREATE ON SCHEMA public FROM " + identifier(appUser));
   await client.query("GRANT CREATE ON SCHEMA public TO " + identifier(migrationUser));

@@ -15,6 +15,13 @@
       "when": 1788386984626,
       "tag": "0001_add_uuid_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788437964125,
+      "tag": "0002_remove_admin_sessions_updated_at_trigger",
+      "breakpoints": true
     }
   ]
 }

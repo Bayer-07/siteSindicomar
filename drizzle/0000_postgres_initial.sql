@@ -341,6 +341,4 @@ CREATE TRIGGER submissions_updated_at BEFORE UPDATE ON submissions FOR EACH ROW 
 --> statement-breakpoint
 CREATE TRIGGER admin_users_updated_at BEFORE UPDATE ON admin_users FOR EACH ROW EXECUTE FUNCTION sindicomar_set_updated_at();
 --> statement-breakpoint
-CREATE TRIGGER admin_sessions_updated_at BEFORE UPDATE ON admin_sessions FOR EACH ROW EXECUTE FUNCTION sindicomar_set_updated_at();
---> statement-breakpoint
 CREATE TRIGGER rate_limit_buckets_updated_at BEFORE UPDATE ON rate_limit_buckets FOR EACH ROW EXECUTE FUNCTION sindicomar_set_updated_at();
