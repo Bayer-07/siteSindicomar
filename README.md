@@ -42,7 +42,7 @@ Para desenvolvimento com recarga automática, use npm run dev depois de executar
 - npm run db:create-admin: cria ou redefine a senha do administrador.
 - npm run db:check: valida tabelas, migrations, pgcrypto e a remoção da tabela de alertas.
 - npm run db:backup: cria um dump PostgreSQL compactado em backups usando o usuário de migração/administração.
-- npm run db:restore -- caminho/arquivo.dump: restaura somente com CONFIRM_RESTORE=YES, usando o usuário de migração/administração.
+- npm run db:restore -- arquivo.dump: restaura um dump dentro de POSTGRES_BACKUP_DIR somente com CONFIRM_RESTORE=YES, usando o usuário de migração/administração.
 - npm run typecheck, npm run lint, npm test e npm run build: validações do projeto.
 
 ## Migração do MySQL existente
@@ -115,7 +115,7 @@ Execute diariamente:
 
 Mantenha cópias fora do servidor e teste a restauração mensalmente em uma base descartável:
 
-    CONFIRM_RESTORE=YES RESTORE_DATABASE_URL=postgresql://... npm run db:restore -- backups/sindicomar-AAAA-MM-DD.dump
+    CONFIRM_RESTORE=YES RESTORE_DATABASE_URL=postgresql://... npm run db:restore -- sindicomar-AAAA-MM-DD.dump
 
 Nunca exponha a porta do PostgreSQL publicamente, nem coloque arquivos .env*, dumps ou uploads no Git.
 

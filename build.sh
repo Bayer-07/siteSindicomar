@@ -119,10 +119,10 @@ install_dependencies() {
     log "SKIP_INSTALL=true; mantendo node_modules existente."
   elif [[ -f "$ROOT_DIR/package-lock.json" ]]; then
     log "Instalando dependências com npm ci (incluindo devDependencies para o build)."
-    npm ci --include=dev
+    npm ci --include=dev --ignore-scripts
   else
     log "package-lock.json não encontrado; usando npm install."
-    npm install
+    npm install --ignore-scripts
   fi
 }
 
