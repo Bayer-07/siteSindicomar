@@ -84,6 +84,26 @@ export const collectiveDocuments: CollectiveDocument[] = [
 
 export const agendaItems: AgendaItem[] = [
   {
+    id: "evento-demonstracao-amanha",
+    slug: "evento-demonstracao-amanha",
+    title: "Encontro empresarial do comércio",
+    description: "Evento de demonstração para visualizar o próximo compromisso destacado na agenda.",
+    date: "2026-09-26T09:00:00-03:00",
+    municipality: "Marechal Cândido Rondon",
+    type: "event",
+    status: "confirmed",
+  },
+  {
+    id: "evento-demonstracao-depois-de-amanha",
+    slug: "evento-demonstracao-depois-de-amanha",
+    title: "Workshop de planejamento empresarial",
+    description: "Segundo evento de demonstração para visualizar a sequência cronológica da agenda.",
+    date: "2026-09-27T14:00:00-03:00",
+    municipality: "Marechal Cândido Rondon",
+    type: "course",
+    status: "confirmed",
+  },
+  {
     id: "acordo-jogos-selecao-2026",
     slug: "acordo-horarios-jogos-selecao-2026",
     title: "Acordo para horários nos jogos da Seleção Brasileira",

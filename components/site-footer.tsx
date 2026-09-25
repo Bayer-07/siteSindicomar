@@ -16,7 +16,7 @@ export function SiteFooter({ contact }: { contact: PublicSiteSettings }) {
         <div><h2>Institucional</h2><nav><Link href="/associe-se">Associe-se</Link><Link href="/contato">Contato</Link><Link href="/privacidade">Privacidade</Link><Link href="/acessibilidade">Acessibilidade</Link></nav></div>
         <div><h2>Atendimento</h2><address><a href={`tel:${contact.phone.replace(/\D/g, "")}`}><Phone size={17} />{contact.phone}</a><a href={`mailto:${contact.email}`}><Mail size={17} />{contact.email}</a><span><MapPin size={17} />{contact.address}</span></address></div>
       </div>
-      <div className="shell footer-bottom"><span>© {new Date().getFullYear()} Sindicomar. Todos os direitos reservados.</span><div><Link href="/cookies">Cookies</Link><Link href="/termos">Termos de uso</Link></div></div>
+      <div className="shell footer-bottom"><span>© {new Date().getFullYear()} Sindicomar. Todos os direitos reservados.</span><div><a className="footer-credit" href="https://axiomforge.com.br" target="_blank" rel="noopener noreferrer">Desenvolvido por Axiom Forge</a><Link href="/cookies">Cookies</Link><Link href="/termos">Termos de uso</Link></div></div>
     </footer>
   );
 }
